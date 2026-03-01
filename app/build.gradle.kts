@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    kotlin("kapt")
 }
 
 android {
@@ -67,5 +68,10 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:${project.property("WORK_VERSION")}")
     /*rx permission*/
 //    implementation("com.github.tbruyelle:rxpermissions:0.12")
-    //
+    // Room数据库
+    implementation("androidx.room:room-runtime:${project.property("ROOM_VERSION")}")
+    // kapt适配Kotlin，Java项目用annotationProcessor
+    kapt("androidx.room:room-compiler:${project.property("ROOM_VERSION")}")
+    // Room Kotlin扩展（支持协程，避免主线程操作）
+    implementation("androidx.room:room-ktx:${project.property("ROOM_VERSION")}")
 }
