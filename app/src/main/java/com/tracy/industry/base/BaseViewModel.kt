@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.res.Resources
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import com.tracy.industry.database.AppDatabase
+import com.tracy.industry.database.DeviceRepository
 import com.tracy.industry.widget.Tip
 import io.reactivex.ObservableTransformer
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -46,6 +48,8 @@ abstract class BaseViewModel(application: Application) : AndroidViewModel(applic
     fun addDisposable(disposable: Disposable) {
         compositeDisposable.add(disposable)
     }
+
+    fun getAppDatabase(): AppDatabase = AppDatabase.getInstance()
 
     fun dispatchCommonError(throwable: Throwable, errorTitle: String? = null) {
         throwable.printStackTrace()

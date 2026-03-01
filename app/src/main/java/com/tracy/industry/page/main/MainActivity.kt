@@ -25,9 +25,17 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         initPermission()
 
         mBinding.tvShow.setOnClickListener {
-            DebugLog.e("tvShow is clicked")
-            val str: String? = null
-            str!!.length
+            mModel.insertDevice()
+        }
+
+        mBinding.tvName.setOnClickListener {
+            mModel.queryDevice()
+        }
+
+        mModel.deviceData.observe(this){
+            it?.apply {
+                mBinding.tvName.text = this.deviceName
+            }
         }
     }
 
