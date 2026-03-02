@@ -14,11 +14,13 @@ class ConfParams {
 
         val DIR_CRASH = "$APP_BASE/crash"
 
+        val DIR_CONFIG = "$APP_BASE/config"
+
         /**
          * 所有需要初始化创建的目录
          */
         val initialFolders: MutableList<String> = mutableListOf(
-            APP_BASE, DIR_CRASH,
+            APP_BASE, DIR_CRASH, DIR_CONFIG
         )
     }
 

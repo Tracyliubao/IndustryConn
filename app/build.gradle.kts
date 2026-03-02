@@ -67,11 +67,18 @@ dependencies {
     implementation("io.reactivex.rxjava2:rxandroid:${project.property("RXANDROID_VERSION")}")
     implementation("androidx.work:work-runtime-ktx:${project.property("WORK_VERSION")}")
     /*rx permission*/
-//    implementation("com.github.tbruyelle:rxpermissions:0.12")
+//    implementation("com.github.tbruyelle:rxpermissions:${project.property("RXPERMISSION_VERSION")}")
     // Room数据库
     implementation("androidx.room:room-runtime:${project.property("ROOM_VERSION")}")
     // kapt适配Kotlin，Java项目用annotationProcessor
     kapt("androidx.room:room-compiler:${project.property("ROOM_VERSION")}")
     // Room Kotlin扩展（支持协程，避免主线程操作）
     implementation("androidx.room:room-ktx:${project.property("ROOM_VERSION")}")
+
+    // MMKV 工业级存储
+    implementation("com.tencent:mmkv:1.3.0")
+    // Gson JSON解析
+    implementation("com.google.code.gson:gson:2.10.1")
+    // 权限相关（可选，导出文件需要）
+    implementation("com.github.permissions-dispatcher:permissionsdispatcher:4.9.1")
 }

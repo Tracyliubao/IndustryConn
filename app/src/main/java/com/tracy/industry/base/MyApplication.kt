@@ -1,6 +1,7 @@
 package com.tracy.industry.base
 
 import android.app.Application
+import com.tencent.mmkv.MMKV
 import com.tracy.industry.database.AppDatabase
 import com.tracy.industry.util.CrashHandler
 
@@ -22,6 +23,7 @@ class MyApplication: Application() {
         CrashHandler.getInstance().init(this)
         // 数据库初始化
         AppDatabase.getInstance()
+        MMKV.initialize(this)
     }
 
 }

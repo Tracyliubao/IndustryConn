@@ -7,29 +7,62 @@
         android:layout_height="match_parent">
 
         <TextView
-            android:id="@+id/tv_show"
-            android:layout_width="100dp"
+            android:id="@+id/tv_insert"
+            android:layout_width="wrap_content"
             android:layout_height="40dp"
-            android:background="@color/purple_200"
-            android:clickable="true"
+            android:background="@color/teal_700"
             android:gravity="center"
-            android:text="hello"
-            android:textSize="30sp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:hint="插入DEV001"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"/>
 
         <TextView
             android:id="@+id/tv_name"
-            android:layout_width="100dp"
+            android:layout_width="wrap_content"
             android:layout_height="40dp"
             android:background="@color/teal_200"
             android:gravity="center"
-            android:hint="name"
-            app:layout_constraintEnd_toEndOf="@id/tv_show"
-            app:layout_constraintStart_toStartOf="@id/tv_show"
-            app:layout_constraintTop_toBottomOf="@id/tv_show" />
+            android:hint="点击查询DEV001"
+            android:layout_marginLeft="20dp"
+            app:layout_constraintStart_toEndOf="@id/tv_insert"
+            app:layout_constraintTop_toTopOf="parent"/>
+
+        <TextView
+            android:id="@+id/tv_export"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:background="@color/purple_200"
+            android:gravity="center"
+            android:text="导出配置文件"
+            android:layout_marginLeft="20dp"
+            app:layout_constraintStart_toEndOf="@id/tv_name"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
+        <TextView
+            android:id="@+id/tv_import"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:background="@color/purple_200"
+            android:gravity="center"
+            android:text="导入配置文件"
+            android:layout_marginLeft="20dp"
+            app:layout_constraintStart_toEndOf="@id/tv_export"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
+        <TextView
+            android:id="@+id/tv_content"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:background="@color/teal_700"
+            android:gravity="center"
+            android:hint="文件内容"
+            android:layout_marginLeft="20dp"
+            app:layout_constraintStart_toEndOf="@id/tv_import"
+            app:layout_constraintTop_toTopOf="@id/tv_import"
+            app:layout_constraintBottom_toBottomOf="@id/tv_import"
+            />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
