@@ -64,6 +64,18 @@
             app:layout_constraintBottom_toBottomOf="@id/tv_import"
             />
 
+        <TextView
+            android:id="@+id/tv_crash"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:background="@color/purple_200"
+            android:gravity="center"
+            android:text="闪退测试"
+            android:layout_marginLeft="20dp"
+            app:layout_constraintStart_toEndOf="@id/tv_content"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </layout>

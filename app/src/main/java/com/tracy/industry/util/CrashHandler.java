@@ -72,14 +72,32 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
     @Override
     public void uncaughtException(Thread thread, Throwable ex) {
         try {
-            // 记录崩溃日志（保存到本地文件）
-            saveCrashLogToFile(ex);
-            // 处理崩溃：重启App（也可以跳转到错误页面/退出App）
-            restartApp();
+            if (!handleCrash(ex)) {
+                mDefaultHandler.uncaughtException(thread, ex);
+            }
+            else {
+                // 处理崩溃：重启App（也可以跳转到错误页面/退出App）
+                restartApp();
+            }
         } catch (Exception e) {
             if (mDefaultHandler != null) {
                 mDefaultHandler.uncaughtException(thread, ex);
             }
+        }
+    }
+
+    // 工业App崩溃处理核心逻辑
+    private Boolean handleCrash(Throwable e) {
+        try {
+            // ========== 步骤1：保存崩溃前的工业数据（核心中的核心） ==========
+//            saveCrashData();
+            // ========== 步骤2：记录工业级崩溃日志（运维排查必备） ==========
+            saveCrashLogToFile(e);
+            // ========== 步骤3：给工业现场用户友好提示（不是普通的“出错了”） ==========
+            return true;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return false;
         }
     }
 

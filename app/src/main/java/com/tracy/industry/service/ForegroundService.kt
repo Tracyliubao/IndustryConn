@@ -64,7 +64,7 @@ class ForegroundService: Service() {
             override fun run() {
                 // 获取当前进程ID
                 val pid = android.os.Process.myPid()
-//                DebugLog.e("【ForegroundService】存活中 | 进程ID：$pid | 时间：${System.currentTimeMillis()}")
+                DebugLog.e("【ForegroundService】存活中 | 进程ID：$pid | 时间：${System.currentTimeMillis()}")
 
                 // 主动检查 GuardService 是否存活
                 if (!isServiceRunning(GuardService::class.java.name)) {
@@ -72,7 +72,7 @@ class ForegroundService: Service() {
                     startService(Intent(this@ForegroundService, GuardService::class.java))
                 }
             }
-        }, 0, 2000)
+        }, 0, 5000)
     }
 
     /**

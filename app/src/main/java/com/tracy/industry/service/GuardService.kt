@@ -42,9 +42,9 @@ class GuardService : Service() {
             override fun run() {
                 // 获取当前进程ID
                 val pid = android.os.Process.myPid()
-//                DebugLog.e("【GuardService】存活中 | 进程ID：$pid | 时间：${System.currentTimeMillis()}")
+                DebugLog.e("【GuardService】存活中 | 进程ID：$pid | 时间：${System.currentTimeMillis()}")
             }
-        }, 0, 2000)
+        }, 0, 5000)
     }
 
     /**

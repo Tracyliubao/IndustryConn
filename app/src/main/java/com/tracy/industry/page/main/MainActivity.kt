@@ -64,6 +64,11 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
             }
             startActivityForResult(intent, IMPORT_FILE_REQUEST_CODE)
         }
+
+        mBinding.tvCrash.setOnClickListener {
+            val str: String? = null
+            str!!.length
+        }
     }
 
     private fun initObserver(){
