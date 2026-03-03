@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 object IndustrialTimeUtils {
 
     private const val REQUEST_CODE = 1001
-
+    private val mmkv = ConfParams.getMMKVInstance()
     /**
      * 计算从当前时间到「次日0点」的延迟（毫秒）
      * 用于每天0点校准的精准触发
@@ -81,9 +81,11 @@ object IndustrialTimeUtils {
 
     /**
      * 启动5s精准采集
+     * 已在主服务中启动
      */
 
     fun startCollectTask() {
+        mmkv.encode(ConfParams.KEY_COLLECT_RUNNING, true)
         // 1. WorkManager兜底（进程重启后恢复）
         val constraints = Constraints.Builder()
             .setRequiresBatteryNotLow(true)
@@ -101,7 +103,6 @@ object IndustrialTimeUtils {
         // 2. 协程循环实现5s精准采集（核心）
         CoroutineScope(Dispatchers.IO).launch {
             while (true) {
-                DebugLog.e("开始精准采集")
                 // 写入日志
                 delay(5000) // 精准延迟5秒，无漂移
             }

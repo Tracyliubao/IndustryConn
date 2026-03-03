@@ -15,21 +15,11 @@ import java.net.UnknownHostException
  */
 class IndustrialConfigManager private constructor() {
     // MMKV 实例（工业场景推荐单例）
-    private val mmkv: MMKV = MMKV.defaultMMKV()
+    private val mmkv = ConfParams.getMMKVInstance()
 
     // 工业配置项常量（按需扩展）
     companion object {
-        // 设备连接相关
-        const val KEY_DEVICE_IP = "device_ip"
-        const val KEY_DEVICE_PORT = "device_port"
-        const val KEY_PLC_TYPE = "plc_type"
-        // 采集参数相关
-        const val KEY_SAMPLE_RATE = "sample_rate"
-        const val KEY_ALARM_THRESHOLD = "alarm_threshold"
-        // 默认配置值（工业场景固定默认值）
-        private const val DEFAULT_PORT = 502
-        private const val DEFAULT_SAMPLE_RATE = 1000
-        private const val DEFAULT_ALARM_THRESHOLD = 80
+
 
         // 单例模式（工业App通用）
         @Volatile
@@ -44,11 +34,11 @@ class IndustrialConfigManager private constructor() {
     }
 
     // --------------- 读取配置 ---------------
-    fun getDeviceIp(): String = mmkv.decodeString(KEY_DEVICE_IP, "") ?: ""
-    fun getDevicePort(): Int = mmkv.decodeInt(KEY_DEVICE_PORT, DEFAULT_PORT)
-    fun getPlcType(): String = mmkv.decodeString(KEY_PLC_TYPE, "") ?: ""
-    fun getSampleRate(): Int = mmkv.decodeInt(KEY_SAMPLE_RATE, DEFAULT_SAMPLE_RATE)
-    fun getAlarmThreshold(): Int = mmkv.decodeInt(KEY_ALARM_THRESHOLD, DEFAULT_ALARM_THRESHOLD)
+    fun getDeviceIp(): String = mmkv.decodeString(ConfParams.KEY_DEVICE_IP, "") ?: ""
+    fun getDevicePort(): Int = mmkv.decodeInt(ConfParams.KEY_DEVICE_PORT, ConfParams.DEFAULT_PORT)
+    fun getPlcType(): String = mmkv.decodeString(ConfParams.KEY_PLC_TYPE, "") ?: ""
+    fun getSampleRate(): Int = mmkv.decodeInt(ConfParams.KEY_SAMPLE_RATE, ConfParams.DEFAULT_SAMPLE_RATE)
+    fun getAlarmThreshold(): Int = mmkv.decodeInt(ConfParams.KEY_ALARM_THRESHOLD, ConfParams.DEFAULT_ALARM_THRESHOLD)
 
     // --------------- 清空配置（工业场景核心）---------------
     /**
@@ -56,11 +46,11 @@ class IndustrialConfigManager private constructor() {
      * 避免清空后设备无法基础连接
      */
     fun clearCustomConfig() {
-        mmkv.encode(KEY_DEVICE_IP, "")
-        mmkv.encode(KEY_PLC_TYPE, "")
+        mmkv.encode(ConfParams.KEY_DEVICE_IP, "")
+        mmkv.encode(ConfParams.KEY_PLC_TYPE, "")
         // 保留默认端口、采集频率等基础参数
-        mmkv.encode(KEY_DEVICE_PORT, DEFAULT_PORT)
-        mmkv.encode(KEY_SAMPLE_RATE, DEFAULT_SAMPLE_RATE)
+        mmkv.encode(ConfParams.KEY_DEVICE_PORT, ConfParams.DEFAULT_PORT)
+        mmkv.encode(ConfParams.KEY_SAMPLE_RATE, ConfParams.DEFAULT_SAMPLE_RATE)
     }
 
     /**
@@ -140,11 +130,11 @@ class IndustrialConfigManager private constructor() {
             }
 
             // 4. 写入MMKV存储（覆盖原有配置）
-            mmkv.encode(KEY_DEVICE_IP, configData.deviceIp)
-            mmkv.encode(KEY_DEVICE_PORT, configData.devicePort)
-            mmkv.encode(KEY_PLC_TYPE, configData.plcType)
-            mmkv.encode(KEY_SAMPLE_RATE, configData.sampleRate)
-            mmkv.encode(KEY_ALARM_THRESHOLD, configData.alarmThreshold)
+            mmkv.encode(ConfParams.KEY_DEVICE_IP, configData.deviceIp)
+            mmkv.encode(ConfParams.KEY_DEVICE_PORT, configData.devicePort)
+            mmkv.encode(ConfParams.KEY_PLC_TYPE, configData.plcType)
+            mmkv.encode(ConfParams.KEY_SAMPLE_RATE, configData.sampleRate)
+            mmkv.encode(ConfParams.KEY_ALARM_THRESHOLD, configData.alarmThreshold)
 
             ImportResult.Success("配置导入成功")
         } catch (e: JsonSyntaxException) {

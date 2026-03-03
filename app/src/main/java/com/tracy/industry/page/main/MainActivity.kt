@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.provider.MediaStore
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.tracy.industry.R
@@ -15,7 +14,8 @@ import com.tracy.industry.databinding.ActivityMainBinding
 import com.tracy.industry.service.ForegroundService
 import com.tracy.industry.ui.theme.generateViewModel
 import com.tracy.industry.ui.theme.showMessage
-import com.tracy.industry.util.DebugLog
+import com.tracy.industry.util.ConfParams
+import com.tracy.industry.util.IndustrialTimeUtils
 
 class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>() {
 
@@ -68,6 +68,11 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         mBinding.tvCrash.setOnClickListener {
             val str: String? = null
             str!!.length
+        }
+
+        mBinding.tvStopCollect.setOnClickListener {
+            IndustrialTimeUtils.stopCollectTask()
+            ConfParams.getMMKVInstance().encode(ConfParams.KEY_COLLECT_RUNNING, false)
         }
     }
 

@@ -9,19 +9,10 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.tracy.industry.base.MyApplication
 import com.tracy.industry.util.DebugLog
-import com.tracy.industry.util.DeviceMonitorWorker
 import java.util.Timer
 import java.util.TimerTask
-import java.util.concurrent.TimeUnit
 
 /**
  * Des:
@@ -52,9 +43,6 @@ class ForegroundService: Service() {
         startGuardService()
         // 4.启用心跳
         startHeartbeatLog()
-
-        // 模拟设备状态定时采集，每 10s 打印一次日志
-        startDeviceMonitorTest10s()
     }
 
     // 心跳日志：核心是打印进程ID和Service名称
@@ -146,63 +134,6 @@ class ForegroundService: Service() {
         val intent = Intent(this, GuardService::class.java)
         // GuardService 是普通服务，不是前台服务，使用 startService 启动
         startService(intent)
-    }
-
-    /**
-     * 启动周期任务，正式用
-     */
-    private fun startDeviceMonitor() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.NOT_REQUIRED)  // 工业本地采集可不需网络
-            .build()
-
-        val request = PeriodicWorkRequestBuilder<DeviceMonitorWorker>(
-            repeatInterval = 15,  // 系统最小 15min
-            repeatIntervalTimeUnit = TimeUnit.MINUTES
-        )
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(applicationContext)
-            .enqueueUniquePeriodicWork(
-                WORK_NAME,
-                ExistingPeriodicWorkPolicy.UPDATE,
-                request
-            )
-    }
-
-    /**
-     * 测试专用10秒轮询打印日志
-     */
-    private fun startDeviceMonitorTest10s() {
-        var retryCount = 0
-        val MAX_RETRY = 3
-
-        val oneTime = OneTimeWorkRequestBuilder<DeviceMonitorWorker>()
-            .setInitialDelay(10, TimeUnit.SECONDS)
-            .build()
-
-        WorkManager.getInstance(MyApplication.instance).enqueue(oneTime)
-
-        // 执行完自动再安排下一次
-        WorkManager.getInstance(MyApplication.instance)
-            .getWorkInfoByIdLiveData(oneTime.id)
-            .observeForever { info ->
-                if (info?.state == WorkInfo.State.SUCCEEDED) {
-                    startDeviceMonitorTest10s()
-                }
-                else if (info?.state == WorkInfo.State.FAILED){
-                    retryCount ++
-                    if (retryCount > MAX_RETRY){
-                        // 重试次数已达上限，停止启动
-                        retryCount = 0
-                        DebugLog.e("【错误】重试次数达上限，停止任务")
-                    }
-                    else {
-                        startDeviceMonitorTest10s()
-                    }
-                }
-            }
     }
 
     override fun onDestroy() {

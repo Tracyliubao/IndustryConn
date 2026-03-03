@@ -76,6 +76,18 @@
             app:layout_constraintTop_toTopOf="parent"
             />
 
+        <TextView
+            android:id="@+id/tv_stop_collect"
+            android:layout_width="120dp"
+            android:layout_height="40dp"
+            android:background="@color/teal_700"
+            android:gravity="center"
+            android:text="停止work定时采集"
+            android:layout_marginLeft="20dp"
+            app:layout_constraintStart_toEndOf="@id/tv_crash"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </layout>

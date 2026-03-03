@@ -12,7 +12,7 @@ import androidx.work.WorkerParameters
 class DeviceMonitorWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
         try {
-            DebugLog.e("精准采集")
+            DebugLog.e("doWork精准采集")
             // 此处可以将记录写入日志
             // writeToLogFile()
             return Result.success()
