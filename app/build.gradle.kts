@@ -81,4 +81,6 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     // 权限相关（可选，导出文件需要）
     implementation("com.github.permissions-dispatcher:permissionsdispatcher:4.9.1")
+    // 日志-工业项目建议保留
+    implementation("com.jakewharton.timber:timber:5.0.1")
 }

@@ -11,8 +11,17 @@ import androidx.work.WorkerParameters
  */
 class DeviceMonitorWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
-        // 工业场景：这里写设备采集、Modbus、MQTT、状态上报
-        DebugLog.e("【工业采集】设备状态读取成功 -> time=${System.currentTimeMillis()}")
-        return Result.success()
+        try {
+            DebugLog.e("精准采集")
+            // 此处可以将记录写入日志
+            // writeToLogFile()
+            return Result.success()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            DebugLog.e("采集失败")
+            // 此处可以将记录写入日志
+            // writeToLogFile()
+            return Result.retry()
+        }
     }
 }
