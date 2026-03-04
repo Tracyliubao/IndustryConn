@@ -6,87 +6,116 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <TextView
-            android:id="@+id/tv_insert"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/cl_content1"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:background="@color/teal_700"
-            android:gravity="center"
-            android:hint="插入DEV001"
+            android:layout_height="wrap_content"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintTop_toTopOf="parent"
+            >
+            <TextView
+                android:id="@+id/tv_insert"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:background="@color/teal_700"
+                android:gravity="center"
+                android:hint="插入DEV001"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
 
-        <TextView
-            android:id="@+id/tv_name"
+            <TextView
+                android:id="@+id/tv_name"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:background="@color/teal_200"
+                android:gravity="center"
+                android:hint="点击查询DEV001"
+                android:layout_marginLeft="20dp"
+                app:layout_constraintStart_toEndOf="@id/tv_insert"
+                app:layout_constraintTop_toTopOf="parent"/>
+
+            <TextView
+                android:id="@+id/tv_export"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:background="@color/purple_200"
+                android:gravity="center"
+                android:text="导出配置文件"
+                android:layout_marginLeft="20dp"
+                app:layout_constraintStart_toEndOf="@id/tv_name"
+                app:layout_constraintTop_toTopOf="parent"
+                />
+
+            <TextView
+                android:id="@+id/tv_import"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:background="@color/purple_200"
+                android:gravity="center"
+                android:text="导入配置文件"
+                android:layout_marginLeft="20dp"
+                app:layout_constraintStart_toEndOf="@id/tv_export"
+                app:layout_constraintTop_toTopOf="parent"
+                />
+
+            <TextView
+                android:id="@+id/tv_content"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:background="@color/teal_700"
+                android:gravity="center"
+                android:hint="文件内容"
+                android:layout_marginLeft="20dp"
+                app:layout_constraintStart_toEndOf="@id/tv_import"
+                app:layout_constraintTop_toTopOf="@id/tv_import"
+                app:layout_constraintBottom_toBottomOf="@id/tv_import"
+                />
+
+            <TextView
+                android:id="@+id/tv_crash"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:background="@color/purple_200"
+                android:gravity="center"
+                android:text="闪退测试"
+                android:layout_marginLeft="20dp"
+                app:layout_constraintStart_toEndOf="@id/tv_content"
+                app:layout_constraintTop_toTopOf="parent"
+                />
+
+            <TextView
+                android:id="@+id/tv_stop_collect"
+                android:layout_width="120dp"
+                android:layout_height="40dp"
+                android:background="@color/teal_700"
+                android:gravity="center"
+                android:text="停止work定时采集"
+                android:layout_marginLeft="20dp"
+                app:layout_constraintStart_toEndOf="@id/tv_crash"
+                app:layout_constraintTop_toTopOf="parent"
+                />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/cl_content2"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:background="@color/teal_200"
-            android:gravity="center"
-            android:hint="点击查询DEV001"
-            android:layout_marginLeft="20dp"
-            app:layout_constraintStart_toEndOf="@id/tv_insert"
-            app:layout_constraintTop_toTopOf="parent"/>
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/cl_content1"
+            >
 
-        <TextView
-            android:id="@+id/tv_export"
-            android:layout_width="100dp"
-            android:layout_height="40dp"
-            android:background="@color/purple_200"
-            android:gravity="center"
-            android:text="导出配置文件"
-            android:layout_marginLeft="20dp"
-            app:layout_constraintStart_toEndOf="@id/tv_name"
-            app:layout_constraintTop_toTopOf="parent"
-            />
+            <TextView
+                android:id="@+id/tv_serial"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:background="@color/purple_200"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                />
 
-        <TextView
-            android:id="@+id/tv_import"
-            android:layout_width="100dp"
-            android:layout_height="40dp"
-            android:background="@color/purple_200"
-            android:gravity="center"
-            android:text="导入配置文件"
-            android:layout_marginLeft="20dp"
-            app:layout_constraintStart_toEndOf="@id/tv_export"
-            app:layout_constraintTop_toTopOf="parent"
-            />
-
-        <TextView
-            android:id="@+id/tv_content"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:background="@color/teal_700"
-            android:gravity="center"
-            android:hint="文件内容"
-            android:layout_marginLeft="20dp"
-            app:layout_constraintStart_toEndOf="@id/tv_import"
-            app:layout_constraintTop_toTopOf="@id/tv_import"
-            app:layout_constraintBottom_toBottomOf="@id/tv_import"
-            />
-
-        <TextView
-            android:id="@+id/tv_crash"
-            android:layout_width="100dp"
-            android:layout_height="40dp"
-            android:background="@color/purple_200"
-            android:gravity="center"
-            android:text="闪退测试"
-            android:layout_marginLeft="20dp"
-            app:layout_constraintStart_toEndOf="@id/tv_content"
-            app:layout_constraintTop_toTopOf="parent"
-            />
-
-        <TextView
-            android:id="@+id/tv_stop_collect"
-            android:layout_width="120dp"
-            android:layout_height="40dp"
-            android:background="@color/teal_700"
-            android:gravity="center"
-            android:text="停止work定时采集"
-            android:layout_marginLeft="20dp"
-            app:layout_constraintStart_toEndOf="@id/tv_crash"
-            app:layout_constraintTop_toTopOf="parent"
-            />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -15,12 +15,19 @@ import com.tracy.industry.service.ForegroundService
 import com.tracy.industry.ui.theme.generateViewModel
 import com.tracy.industry.ui.theme.showMessage
 import com.tracy.industry.util.ConfParams
+import com.tracy.industry.util.DebugLog
 import com.tracy.industry.util.IndustrialTimeUtils
+import java.io.File
 
 class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>() {
 
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
     private val IMPORT_FILE_REQUEST_CODE = 1002
+
+    // 工业设备常见串口路径（测试用，实际根据设备调整）
+    private val serialPortPath = "/dev/ttyS1"
+    // 常见波特率
+    private val baudRate = 9600
 
     override fun createViewModel(): MainViewModel = generateViewModel(MainViewModel::class.java)
 
@@ -73,6 +80,17 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         mBinding.tvStopCollect.setOnClickListener {
             IndustrialTimeUtils.stopCollectTask()
             ConfParams.getMMKVInstance().encode(ConfParams.KEY_COLLECT_RUNNING, false)
+        }
+
+        // 测试：尝试获取SerialPort类（验证库引入成功）
+        try {
+            // 这里只是验证库能调用，实际打开需要真实设备
+            val serialPortFile = File(serialPortPath)
+            DebugLog.e("串口库引入成功，串口文件：${serialPortFile.exists()}")
+            mBinding.tvSerial.text = "串口库引入成功！\n串口路径：$serialPortPath\n波特率：$baudRate"
+        } catch (e: Exception) {
+            DebugLog.e("串口库引入失败：${e.message}")
+            mBinding.tvSerial.text = "串口库引入失败：${e.message}"
         }
     }
 

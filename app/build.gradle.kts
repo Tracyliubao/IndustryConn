@@ -17,6 +17,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -38,6 +42,11 @@ android {
     buildFeatures {
         compose = true
         dataBinding = true
+    }
+    sourceSets {
+        named("main") {
+            jniLibs.srcDirs("libs")
+        }
     }
 }
 
@@ -83,4 +92,11 @@ dependencies {
     implementation("com.github.permissions-dispatcher:permissionsdispatcher:4.9.1")
     // 日志-工业项目建议保留
     implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // 核心：SerialPort库（2.1.5 发布于 Maven Central，适配16KB页面）
+    implementation("com.licheedev:android-serialport:2.1.5")
+
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
