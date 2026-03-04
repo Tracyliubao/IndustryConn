@@ -17,6 +17,7 @@ import com.tracy.industry.ui.theme.showMessage
 import com.tracy.industry.util.ConfParams
 import com.tracy.industry.util.DebugLog
 import com.tracy.industry.util.IndustrialTimeUtils
+import com.tracy.industry.util.SerialPortUtil
 import java.io.File
 
 class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>() {
@@ -26,8 +27,8 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
 
     // 工业设备常见串口路径（测试用，实际根据设备调整）
     private val serialPortPath = "/dev/ttyS1"
-    // 常见波特率
-    private val baudRate = 9600
+    private lateinit var serialPortUtil: SerialPortUtil
+    private val TEST_HEX_COMMAND = "010300000001840A"
 
     override fun createViewModel(): MainViewModel = generateViewModel(MainViewModel::class.java)
 
@@ -82,15 +83,50 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
             ConfParams.getMMKVInstance().encode(ConfParams.KEY_COLLECT_RUNNING, false)
         }
 
-        // 测试：尝试获取SerialPort类（验证库引入成功）
-        try {
-            // 这里只是验证库能调用，实际打开需要真实设备
-            val serialPortFile = File(serialPortPath)
-            DebugLog.e("串口库引入成功，串口文件：${serialPortFile.exists()}")
-            mBinding.tvSerial.text = "串口库引入成功！\n串口路径：$serialPortPath\n波特率：$baudRate"
-        } catch (e: Exception) {
-            DebugLog.e("串口库引入失败：${e.message}")
-            mBinding.tvSerial.text = "串口库引入失败：${e.message}"
+        // 配置串口数据
+        // 2. 初始化串口工具类（配置9600波特率，工业默认参数）
+        serialPortUtil = SerialPortUtil(
+            portPath = serialPortPath,
+            baudRate = 9600,
+            dataBits = 8,
+            stopBits = 1,
+            parity = 0
+        )
+
+        mBinding.tvSerial.setOnClickListener {
+            val isOpen = serialPortUtil.openSerialPort()
+            mBinding.tvSerial.text = if (isOpen) "已打开" else "未开启"
+        }
+
+        mBinding.tvCloseSerial.setOnClickListener {
+            serialPortUtil.closeSerialPort()
+            showMessage("已关闭")
+        }
+
+        mBinding.tvCheckSerial.setOnClickListener {
+            val portConfig = serialPortUtil.getPortConfig()
+            mBinding.tvCheckSerial.text = portConfig
+        }
+
+        mBinding.tvSend.setOnClickListener {
+            val message = serialPortUtil.sendHexCommand(TEST_HEX_COMMAND)
+            mBinding.tvSend.text = message
+        }
+
+        mBinding.tvReceive.setOnClickListener {
+            serialPortUtil.receiveHexData(TEST_HEX_COMMAND) { hexData ->
+                runOnUiThread {
+                    if (hexData != null) {
+                        val temperature = serialPortUtil.parseTemperatureFromHex(hexData)
+                        val parseResult = if (temperature != null) {
+                            "解析成功：$hexData"
+                        } else {
+                            "解析失败"
+                        }
+                        mBinding.tvReceive.text = parseResult
+                    }
+                }
+            }
         }
     }
 
@@ -256,6 +292,11 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         mBinding.tvContent.text = "${IndustrialConfigManager.getInstance().getDeviceIp()}\t" +
                 "${IndustrialConfigManager.getInstance().getDevicePort()}\t" +
                 "${IndustrialConfigManager.getInstance().getPlcType()}"
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serialPortUtil.closeSerialPort()
     }
 
 }
