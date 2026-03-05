@@ -28,7 +28,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     // 工业设备常见串口路径（测试用，实际根据设备调整）
     private val serialPortPath = "/dev/ttyS1"
     private lateinit var serialPortUtil: SerialPortUtil
-    private val TEST_HEX_COMMAND = "010300000001840A"
+    private val TEST_HEX_COMMAND = "01030200648439"
 
     override fun createViewModel(): MainViewModel = generateViewModel(MainViewModel::class.java)
 
@@ -114,18 +114,38 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         }
 
         mBinding.tvReceive.setOnClickListener {
-            serialPortUtil.receiveHexData(TEST_HEX_COMMAND) { hexData ->
+            serialPortUtil.receiveHexData(true) { hexData ->
                 runOnUiThread {
                     if (hexData != null) {
                         val temperature = serialPortUtil.parseTemperatureFromHex(hexData)
                         val parseResult = if (temperature != null) {
-                            "解析成功：$hexData"
+                            "解析成功：$temperature℃"
                         } else {
                             "解析失败"
                         }
                         mBinding.tvReceive.text = parseResult
                     }
                 }
+            }
+        }
+
+        mBinding.tvRead.setOnClickListener {
+            val regValues = serialPortUtil.readHoldingRegisters(deviceAddr = 1, startReg = 0, regCount = 1)
+            if (regValues.isNotEmpty()) {
+                // 工业场景：温度值=寄存器值/10
+                val temperature = regValues[0] / 10.0
+                mBinding.tvRead.text = "寄存器原始值：${regValues[0]}，解析温度值：${temperature}℃"
+            } else {
+                mBinding.tvRead.text = "读寄存器失败"
+            }
+        }
+
+        mBinding.tvWrite.setOnClickListener {
+            val success = serialPortUtil.writeSingleRegister(deviceAddr = 1, regAddr = 1, value = 100)
+            mBinding.tvWrite.text = if (success) {
+                "寄存器地址：1写入值：100"
+            } else {
+                "写寄存器失败"
             }
         }
     }

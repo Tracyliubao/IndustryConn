@@ -5,6 +5,7 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -26,6 +27,8 @@ class SerialPortUtil(
     var isPortOpen = false // 串口是否打开（对外暴露状态）
         private set
 
+    private val TEST_READ_COMMAND = "01030200648439"
+    private val TEST_WRITE_COMMAND = "010600010064980A"
     private val BUFFER_SIZE = 1024       // 接收缓冲区
     private val RECEIVE_TIMEOUT = 1000L  // 接收超时（ms）
     private val receiveExecutor = Executors.newSingleThreadExecutor() // 异步接收线程池
@@ -237,7 +240,7 @@ class SerialPortUtil(
      * 工业级核心方法：异步接收串口数据（避免阻塞主线程）
      * @param callback 接收结果回调（返回十六进制字符串）
      */
-    fun receiveHexData(testData: String, callback: (String?) -> Unit) {
+    fun receiveHexData(isRead: Boolean, callback: (String?) -> Unit) {
         // 防呆：串口未打开直接返回null
         if (!isPortOpen) {
             DebugLog.e("串口未打开，无法接收数据")
@@ -245,37 +248,39 @@ class SerialPortUtil(
             return
         }
 
-        // 异步接收（工业通信必须异步，否则卡死UI）
-        receiveExecutor.execute {
-            val buffer = testData.toByteArray()
-            try {
-                // 设置超时（工业现场避免死等）
-//                inputStream?.readTimeout = RECEIVE_TIMEOUT.toInt()
-                // 读取设备返回的字节数据
-                val readLen = inputStream?.read(buffer) ?: -1
+        callback(if (isRead) TEST_READ_COMMAND else TEST_WRITE_COMMAND)
 
-                if (readLen > 0) {
-                    // 截取有效数据（避免空字节）
-                    val validData = testData.toByteArray()
-                    // 转成十六进制字符串（方便展示/解析）
-                    val hexData = bytesToHex(validData)
-                    DebugLog.e("接收数据成功！")
-                    DebugLog.e("接收字节数：$readLen")
-                    DebugLog.e("接收数据（十六进制）：$hexData")
-                    // 回调给主线程
-                    callback(hexData)
-                } else {
-                    DebugLog.e("未接收到有效数据（读取长度：$readLen）")
-                    callback(null)
-                }
-            } catch (e: IOException) {
-                DebugLog.e("接收数据失败：IO异常 - ${e.message}")
-                callback(null)
-            } catch (e: Exception) {
-                DebugLog.e("接收数据失败：未知异常 - ${e.message}")
-                callback(null)
-            }
-        }
+        // 异步接收（工业通信必须异步，否则卡死UI）
+//        receiveExecutor.execute {
+//            val buffer = testData.toByteArray()
+//            try {
+//                // 设置超时（工业现场避免死等）
+//                inputStream?.readTimeout = RECEIVE_TIMEOUT.toInt()
+//                // 读取设备返回的字节数据
+//                val readLen = inputStream?.read(buffer) ?: -1
+//
+//                if (readLen > 0) {
+//                    // 截取有效数据（避免空字节）
+//                    val validData = testData.toByteArray()
+//                    // 转成十六进制字符串（方便展示/解析）
+//                    val hexData = bytesToHex(validData)
+//                    DebugLog.e("接收数据成功！")
+//                    DebugLog.e("接收字节数：$readLen")
+//                    DebugLog.e("接收数据（十六进制）：$hexData")
+//                    // 回调给主线程
+//                    callback(hexData)
+//                } else {
+//                    DebugLog.e("未接收到有效数据（读取长度：$readLen）")
+//                    callback(null)
+//                }
+//            } catch (e: IOException) {
+//                DebugLog.e("接收数据失败：IO异常 - ${e.message}")
+//                callback(null)
+//            } catch (e: Exception) {
+//                DebugLog.e("接收数据失败：未知异常 - ${e.message}")
+//                callback(null)
+//            }
+//        }
     }
 
     /**
@@ -305,6 +310,153 @@ class SerialPortUtil(
             DebugLog.e("解析温度失败：${e.message}")
             return null
         }
+    }
+
+
+    // ========== 2. Modbus 读寄存器（03功能码） ==========
+    /**
+     * 读取保持寄存器
+     * @param deviceAddr 设备地址（1-247）
+     * @param startReg 起始寄存器地址
+     * @param regCount 读取寄存器数量
+     * @return 解析后的寄存器值列表（失败返回空列表）
+     */
+    fun readHoldingRegisters(deviceAddr: Int, startReg: Int, regCount: Int): List<Int> {
+        if (!isPortOpen) return emptyList()
+
+        // 1. 构造Modbus读指令（十六进制字符串）
+        val cmdHex = buildReadRegCmd(deviceAddr, startReg, regCount)
+        DebugLog.e("构造读寄存器指令：$cmdHex")
+
+        // 2. 发送指令 + 接收返回数据
+        val latch = CountDownLatch(1)
+        var receiveHex: String? = null
+        sendHexCommand(cmdHex)
+        receiveHexData(true) { hexData ->
+            receiveHex = hexData
+            latch.countDown()
+        }
+
+        // 3. 等待接收（超时1秒）
+        try {
+            latch.await(RECEIVE_TIMEOUT, TimeUnit.MILLISECONDS)
+        } catch (e: InterruptedException) {
+            DebugLog.e("读寄存器超时")
+            return emptyList()
+        }
+
+        // 4. 解析返回数据
+        return if (receiveHex != null) {
+            parseReadRegData(receiveHex!!, regCount)
+        } else {
+            emptyList()
+        }
+    }
+
+    /**
+     * 构造读寄存器指令（03功能码）
+     */
+    private fun buildReadRegCmd(deviceAddr: Int, startReg: Int, regCount: Int): String {
+        // 设备地址（转2位十六进制）
+        val addrHex = String.format("%02X", deviceAddr)
+        // 功能码（03）
+        val funcHex = "03"
+        // 起始寄存器地址（转4位十六进制）
+        val startRegHex = String.format("%04X", startReg)
+        // 读取数量（转4位十六进制）
+        val countHex = String.format("%04X", regCount)
+        // 暂存指令（无CRC，模拟模式用）
+        val tempCmd = "$addrHex$funcHex$startRegHex$countHex"
+        // 真实场景需添加CRC校验，这里简化（Day13讲CRC时补充）
+        return tempCmd + "840A" // 固定CRC（模拟用）
+    }
+
+    /**
+     * 解析读寄存器返回数据
+     */
+    private fun parseReadRegData(hexData: String, regCount: Int): List<Int> {
+        val regValues = mutableListOf<Int>()
+        try {
+            // 1. 校验帧格式（地址+功能码+数据长度）
+            if (hexData.length < 8 || !hexData.startsWith(hexData.substring(0, 2) + "03")) {
+                DebugLog.e("读寄存器返回帧格式错误：$hexData")
+                return emptyList()
+            }
+
+            // 2. 数据长度位（第5-6字符）
+            val dataLen = hexData.substring(4, 6).toInt(16)
+            // 3. 校验数据长度是否匹配（每个寄存器2字节）
+            if (dataLen != regCount * 2) {
+                DebugLog.e("返回数据长度不匹配：期望${regCount*2}字节，实际${dataLen}字节")
+                return emptyList()
+            }
+
+            // 4. 解析每个寄存器值（每4个字符=1个寄存器值）
+            var offset = 6 // 数据起始位置
+            for (i in 0 until regCount) {
+                val regHex = hexData.substring(offset, offset + 4)
+                regValues.add(regHex.toInt(16))
+                offset += 4
+            }
+            DebugLog.e("解析读寄存器数据成功：$regValues")
+        } catch (e: Exception) {
+            DebugLog.e("解析读寄存器数据失败：${e.message}")
+        }
+        return regValues
+    }
+
+    // ========== 3. Modbus 写寄存器（06功能码） ==========
+    /**
+     * 写单个保持寄存器
+     * @param deviceAddr 设备地址
+     * @param regAddr 寄存器地址
+     * @param value 写入值
+     * @return true=写入成功，false=失败
+     */
+    fun writeSingleRegister(deviceAddr: Int, regAddr: Int, value: Int): Boolean {
+        if (!isPortOpen) return false
+
+        // 1. 构造Modbus写指令
+        val cmdHex = buildWriteRegCmd(deviceAddr, regAddr, value)
+        DebugLog.e("构造写寄存器指令：$cmdHex")
+
+        // 2. 发送指令 + 接收返回数据
+        val latch = CountDownLatch(1)
+        var receiveHex: String? = null
+        sendHexCommand(cmdHex)
+        receiveHexData(false) { hexData ->
+            receiveHex = hexData
+            latch.countDown()
+        }
+
+        // 3. 等待接收（超时1秒）
+        try {
+            latch.await(RECEIVE_TIMEOUT, TimeUnit.MILLISECONDS)
+        } catch (e: InterruptedException) {
+            DebugLog.e("写寄存器超时")
+            return false
+        }
+
+        // 4. 校验返回数据（写成功返回原指令）
+        return receiveHex == cmdHex
+    }
+
+    /**
+     * 构造写寄存器指令（06功能码）
+     */
+    private fun buildWriteRegCmd(deviceAddr: Int, regAddr: Int, value: Int): String {
+        // 设备地址（2位十六进制）
+        val addrHex = String.format("%02X", deviceAddr)
+        // 功能码（06）
+        val funcHex = "06"
+        // 寄存器地址（4位十六进制）
+        val regHex = String.format("%04X", regAddr)
+        // 写入值（4位十六进制）
+        val valueHex = String.format("%04X", value)
+        // 暂存指令（无CRC，模拟模式用）
+        val tempCmd = "$addrHex$funcHex$regHex$valueHex"
+        // 真实场景需添加CRC校验，这里简化
+        return tempCmd + "980A" // 固定CRC（模拟用）
     }
 
 }
