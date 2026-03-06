@@ -5,14 +5,18 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.work.WorkManager
 import com.tracy.industry.util.DebugLog
+import com.tracy.industry.util.SerialPortUtil
 import java.util.Timer
 import java.util.TimerTask
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Des:
@@ -27,14 +31,28 @@ class ForegroundService: Service() {
     private lateinit var powerManager: PowerManager
     private var heartbeatTimer: Timer? = null
     private val WORK_NAME = "DEVICE_MONITOR"
+    private lateinit var modbusUtil: SerialPortUtil
+    private val collectExecutor = Executors.newSingleThreadScheduledExecutor()
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
+    private var temperatureText: String = ""
+    private var count = 0
+
+    override fun onBind(intent: Intent?): IBinder {
+        return MyBinder(this)
+    }
+
+    class MyBinder(val service: ForegroundService) : Binder() {
+
     }
 
     override fun onCreate() {
         super.onCreate()
         powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        modbusUtil = SerialPortUtil(portPath = "/dev/ttyS1",
+            baudRate = 9600,
+            dataBits = 8,
+            stopBits = 1,
+            parity = 0 )
         // 1. 检测并引导关闭电池优化
         checkBatteryOptimization()
         // 2. 启动前台服务（提升进程优先级）
@@ -43,6 +61,8 @@ class ForegroundService: Service() {
         startGuardService()
         // 4.启用心跳
         startHeartbeatLog()
+
+        startDataCollection()
 
 //        5. 串口 / Modbus 通信初始化
 //        6. 定时采集设备数据
@@ -102,6 +122,20 @@ class ForegroundService: Service() {
         DebugLog.e("ForegroundService已启动，常驻通知栏显示")
     }
 
+    // ========== 定时采集数据 ==========
+    private fun startDataCollection() {
+        collectExecutor.scheduleWithFixedDelay({
+            DebugLog.e("startDataCollection-------->")
+            modbusUtil.openSerialPort()
+            // 1. 读保持寄存器（03）：温度
+            val tempRegValues = modbusUtil.readHoldingRegisters(1, 0, 1)
+            if (tempRegValues.isNotEmpty()) {
+                val temperature = tempRegValues[0] / 10.0
+                temperatureText = "采集温度：${temperature}℃"
+            }
+        }, 0, 5, TimeUnit.SECONDS)
+    }
+
     /**
      * 检测电池优化：若开启，引导用户关闭
      */
@@ -140,6 +174,8 @@ class ForegroundService: Service() {
         // GuardService 是普通服务，不是前台服务，使用 startService 启动
         startService(intent)
     }
+
+    fun getTemperature(): String = temperatureText
 
     override fun onDestroy() {
         super.onDestroy()

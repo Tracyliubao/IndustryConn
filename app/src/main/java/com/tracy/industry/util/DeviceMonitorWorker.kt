@@ -29,6 +29,9 @@ class DeviceMonitorWorker(context: Context, params: WorkerParameters) : Worker(c
 
     override fun doWork(): Result {
         try {
+//            1. 本地缓存的历史数据
+//            2. 设备累计数据（比如累计产量、累计运行时间）
+//            3. 异常日志
             DebugLog.e("doWork精准采集")
             val isHasNet = isNetworkAvailable()
             deviceDao.insertDevice(DeviceEntity(deviceId = 111, deviceName = "机械", deviceCode = "101EV", deviceStatus = if (isHasNet) "在线" else "离线"))

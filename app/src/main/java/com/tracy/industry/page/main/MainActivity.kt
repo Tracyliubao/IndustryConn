@@ -1,11 +1,13 @@
 package com.tracy.industry.page.main
 
-import com.tracy.industry.util.IndustrialConfigManager
 import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.IBinder
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.tracy.industry.R
@@ -16,9 +18,9 @@ import com.tracy.industry.ui.theme.generateViewModel
 import com.tracy.industry.ui.theme.showMessage
 import com.tracy.industry.util.ConfParams
 import com.tracy.industry.util.DebugLog
+import com.tracy.industry.util.IndustrialConfigManager
 import com.tracy.industry.util.IndustrialTimeUtils
 import com.tracy.industry.util.SerialPortUtil
-import java.io.File
 
 class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>() {
 
@@ -29,6 +31,8 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     private val serialPortPath = "/dev/ttyS1"
     private lateinit var serialPortUtil: SerialPortUtil
     private val TEST_HEX_COMMAND = "01030200648439"
+
+    private var foreService: ForegroundService? = null
 
     override fun createViewModel(): MainViewModel = generateViewModel(MainViewModel::class.java)
 
@@ -148,6 +152,10 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                 "写寄存器失败"
             }
         }
+
+        mBinding.tvState.postDelayed(kotlinx.coroutines.Runnable {
+            mBinding.tvState.text = foreService?.getTemperature()
+        }, 1000)
     }
 
     private fun initObserver(){
@@ -155,6 +163,17 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
             it?.apply {
                 mBinding.tvName.text = this.deviceName
             }
+        }
+    }
+
+    private val serviceConnection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+            DebugLog.e("LoginService bind success")
+            foreService = (service as ForegroundService.MyBinder).service
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+            DebugLog.e()
         }
     }
 
@@ -179,6 +198,8 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         } else {
             startService(serviceIntent)
         }
+
+        bindService(Intent(this, ForegroundService::class.java), serviceConnection, BIND_AUTO_CREATE)
     }
 
     private fun initPermission(){
@@ -317,6 +338,9 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     override fun onDestroy() {
         super.onDestroy()
         serialPortUtil.closeSerialPort()
+        // 结束后台服务
+        stopService(Intent(this, ForegroundService::class.java))
+        unbindService(serviceConnection)
     }
 
 }
