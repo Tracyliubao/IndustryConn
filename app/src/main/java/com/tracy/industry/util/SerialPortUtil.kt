@@ -367,8 +367,11 @@ class SerialPortUtil(
         val countHex = String.format("%04X", regCount)
         // 暂存指令（无CRC，模拟模式用）
         val tempCmd = "$addrHex$funcHex$startRegHex$countHex"
+
+        val noCrc = addrHex + funcHex + startRegHex + countHex
+
         // 真实场景需添加CRC校验，这里简化（Day13讲CRC时补充）
-        return tempCmd + "840A" // 固定CRC（模拟用）
+        return tempCmd + getModbusCrc(noCrc) // 固定CRC（模拟用）
     }
 
     /**
@@ -455,8 +458,37 @@ class SerialPortUtil(
         val valueHex = String.format("%04X", value)
         // 暂存指令（无CRC，模拟模式用）
         val tempCmd = "$addrHex$funcHex$regHex$valueHex"
+
+        val noCrc = addrHex + funcHex + regHex + valueHex
+
         // 真实场景需添加CRC校验，这里简化
-        return tempCmd + "980A" // 固定CRC（模拟用）
+        return tempCmd + getModbusCrc(noCrc) // 固定CRC（模拟用）
+    }
+
+    // 输入：十六进制字符串（不带CRC）
+    // 输出：计算好的 CRC 十六进制字符串
+    private fun getModbusCrc(hexStr: String): String {
+        val bytes = hexStrToBytes(hexStr)
+        val crc = calcCrc16(bytes)
+        return String.format("%04X", crc)
+    }
+
+    // Modbus CRC16 核心算法（固定不变）
+    private fun calcCrc16(data: ByteArray): Int {
+        var crc = 0xFFFF
+        for (b in data) {
+            crc = crc xor (b.toInt() and 0xFF)
+            for (i in 0 until 8) {
+                if ((crc and 1) != 0) {
+                    crc = crc shr 1
+                    crc = crc xor 0xA001
+                } else {
+                    crc = crc shr 1
+                }
+            }
+        }
+        // 高低字节交换（Modbus 规定）
+        return ((crc and 0xFF) shl 8) or ((crc shr 8) and 0xFF)
     }
 
 }

@@ -43,6 +43,11 @@ class ForegroundService: Service() {
         startGuardService()
         // 4.启用心跳
         startHeartbeatLog()
+
+//        5. 串口 / Modbus 通信初始化
+//        6. 定时采集设备数据
+//        7. 本地数据缓存
+//        8. 串口断连重连机制
     }
 
     // 心跳日志：核心是打印进程ID和Service名称
