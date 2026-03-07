@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.industrial.app.ble.BLEManager
 import com.tracy.industry.R
 import com.tracy.industry.base.BaseBindingActivityKt
 import com.tracy.industry.databinding.ActivityMainBinding
@@ -26,6 +27,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
 
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
     private val IMPORT_FILE_REQUEST_CODE = 1002
+    private val REQUEST_BLE_PERMISSIONS = 1003
 
     // 工业设备常见串口路径（测试用，实际根据设备调整）
     private val serialPortPath = "/dev/ttyS1"
@@ -33,6 +35,10 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     private val TEST_HEX_COMMAND = "01030200648439"
 
     private var foreService: ForegroundService? = null
+
+    private val bleManager by lazy {
+        BLEManager.getInstance(this)
+    }
 
     override fun createViewModel(): MainViewModel = generateViewModel(MainViewModel::class.java)
 
@@ -156,6 +162,40 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         mBinding.tvState.postDelayed(kotlinx.coroutines.Runnable {
             mBinding.tvState.text = foreService?.getTemperature()
         }, 1000)
+
+        mBinding.tvScan.setOnClickListener {
+            if (bleManager.checkBLEAvailable()) {
+                // 检查权限
+                if (bleManager.checkBLEPermissions()) {
+                    // 权限已获取，开始扫描
+                    startBLEScan()
+                } else {
+                    // 申请权限
+                    val need = bleManager.getNeedRequestPermissions()
+                        ?.filter { it.isNotBlank() }
+                        ?.distinct()
+                        ?.toTypedArray() ?: emptyArray()
+                    if (need.isEmpty()) {
+                        startBLEScan()
+                    } else {
+                        try {
+                            ActivityCompat.requestPermissions(
+                                this,
+                                need,
+                                REQUEST_BLE_PERMISSIONS
+                            )
+                        } catch (_: IllegalArgumentException) {
+                            showMessage("权限列表为空或包含非法项，已跳过并开始扫描")
+                            startBLEScan()
+                        }
+                    }
+                }
+            } else {
+                // 打开蓝牙设置
+                bleManager.openBluetoothSettings()
+                showMessage("请先开启蓝牙")
+            }
+        }
     }
 
     private fun initObserver(){
@@ -202,6 +242,59 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         bindService(Intent(this, ForegroundService::class.java), serviceConnection, BIND_AUTO_CREATE)
     }
 
+    private fun startBLEScan() {
+        bleManager.startScan(
+            filterName = null, // 移除名称过滤，扫周边所有蓝牙设备
+            callback = object : BLEManager.BLEScanCallback {
+                override fun onDeviceFound(device: android.bluetooth.BluetoothDevice, rssi: Int, scanRecord: ByteArray?) {
+                    // 更新UI（必须在主线程）
+                    runOnUiThread {
+                        val name = try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                                    device.name ?: "未知"
+                                } else {
+                                    "未知"
+                                }
+                            } else {
+                                device.name ?: "未知"
+                            }
+                        } catch (_: SecurityException) {
+                            "未知"
+                        }
+                        val addr = try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                                    device.address
+                                } else {
+                                    "未知"
+                                }
+                            } else {
+                                device.address
+                            }
+                        } catch (_: SecurityException) {
+                            "未知"
+                        }
+                        val deviceInfo = "名称：$name\n地址：$addr\n信号：$rssi dBm\n\n"
+                        mBinding.tvDeviceList.append(deviceInfo)
+                    }
+                }
+
+                override fun onScanStart() {
+                    DebugLog.e("扫描中...")
+                }
+
+                override fun onScanStop() {
+                    DebugLog.e("扫描已停止")
+                }
+
+                override fun onScanError(errorCode: Int) {
+                    DebugLog.e("扫描失败：$errorCode")
+                }
+            }
+        )
+    }
+
     private fun initPermission(){
         // 1. 检查并申请所有必要权限
         val permissionsToRequest = mutableListOf<String>()
@@ -235,6 +328,14 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
             permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
 
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+
         // 有需要申请的权限
         if (permissionsToRequest.isNotEmpty()) {
             ActivityCompat.requestPermissions(
@@ -263,7 +364,16 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                 startForegroundService()
             } else {
                 // 用户拒绝权限，通知无法显示，Service也无法正常运行
-                println("用户拒绝了通知权限，前台Service无法显示常驻通知")
+                showMessage("用户拒绝了通知权限，前台Service无法显示常驻通知")
+            }
+        }
+        else if (requestCode == REQUEST_BLE_PERMISSIONS){
+            val allGranted = grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }
+            if (allGranted) {
+                // 权限授予，开始扫描
+                startBLEScan()
+            } else {
+                showMessage("BLE权限被拒绝，无法扫描设备")
             }
         }
     }
@@ -341,6 +451,8 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         // 结束后台服务
         stopService(Intent(this, ForegroundService::class.java))
         unbindService(serviceConnection)
+        // 停止扫描，释放资源
+        bleManager.stopScan()
     }
 
 }

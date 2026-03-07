@@ -28,6 +28,23 @@
     <!-- 禁用Google Play的64位检查（部分工业设备只有32位） -->
     <uses-sdk tools:overrideLibrary="android_serialport_api" />
 
+    <!-- 基础BLE权限 -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- 后台扫描权限（Android 12+） -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- 声明BLE功能 -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true" />
+
     <application xmlns:tools="http://schemas.android.com/tools"
         android:name=".base.MyApplication"
         android:allowBackup="false"

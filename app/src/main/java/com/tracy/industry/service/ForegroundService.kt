@@ -62,7 +62,7 @@ class ForegroundService: Service() {
         // 4.启用心跳
         startHeartbeatLog()
 
-        startDataCollection()
+//        startDataCollection()
 
 //        5. 串口 / Modbus 通信初始化
 //        6. 定时采集设备数据
