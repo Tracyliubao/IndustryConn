@@ -1,10 +1,14 @@
-package com.industrial.app.ble
+package com.tracy.industry.util
 
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -17,7 +21,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
-import com.tracy.industry.util.DebugLog
+import java.util.UUID
 
 class BLEManager private constructor(private val context: Context) {
 
@@ -29,12 +33,18 @@ class BLEManager private constructor(private val context: Context) {
         bluetoothManager.adapter
     }
     private var bleScanner: BluetoothLeScanner? = null
+    private var bluetoothGatt: BluetoothGatt? = null // GATT连接对象
 
     // 扫描状态
     private var isScanning = false
+    // 连接状态标记
+    private var isConnecting = false
     private val scanHandler = Handler(Looper.getMainLooper())
+    private val connectHandler = Handler(Looper.getMainLooper())
     // 扫描超时（默认10秒）
-    private val SCAN_TIMEOUT = 10000L
+    private val SCAN_TIMEOUT = 5000L
+    // 连接超时（15秒）
+    private val CONNECT_TIMEOUT = 5000L
 
     // 回调接口
     interface BLEScanCallback {
@@ -43,7 +53,18 @@ class BLEManager private constructor(private val context: Context) {
         fun onScanStop()
         fun onScanError(errorCode: Int)
     }
+
+    interface BLEConnectCallback{
+        fun onConnectedState(message: String)
+    }
+
     private var scanCallback: BLEScanCallback? = null
+    private var connectCallback: BLEConnectCallback? = null
+
+    // 通用服务/特征值UUID（工业设备通用，可替换为设备专属UUID）
+    val UUID_GENERIC_ACCESS = UUID.fromString("00001800-0000-1000-8000-00805f9b34fb")
+    val UUID_GENERIC_ATTRIBUTE = UUID.fromString("00001801-0000-1000-8000-00805f9b34fb")
+    val UUID_DEVICE_NAME = UUID.fromString("00002a00-0000-1000-8000-00805f9b34fb")
 
     // 单例模式
     companion object {
@@ -280,5 +301,123 @@ class BLEManager private constructor(private val context: Context) {
         val intent = Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
+    }
+
+    @SuppressLint("MissingPermission")
+    fun connectDevice(device: BluetoothDevice, callback: BLEConnectCallback) {
+        // 透传连接阶段回调
+        this.connectCallback = callback
+        isConnecting = true
+        // 关闭旧连接
+        bluetoothGatt?.close()
+
+        // 发起连接（false=不自动重连，工业场景推荐手动控制）
+        bluetoothGatt = device.connectGatt(context, false, object : BluetoothGattCallback(){
+            // 连接状态变化（核心）
+            @SuppressLint("MissingPermission")
+            override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                super.onConnectionStateChange(gatt, status, newState)
+                val device = gatt.device
+
+                when (newState) {
+                    // 连接成功
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        DebugLog.e("设备连接成功：${device.address}")
+                        connectCallback?.onConnectedState("设备连接成功：${device.address}")
+                        isConnecting = false
+                        // 必须调用：发现设备服务（连接成功后唯一入口）
+                        gatt.discoverServices()
+                    }
+
+                    // 断开连接
+                    BluetoothProfile.STATE_DISCONNECTED -> {
+                        DebugLog.e("设备断开连接：${device.address}，状态码：$status")
+                        connectCallback?.onConnectedState("设备断开连接：${device.address}，状态码：$status")
+                        isConnecting = false
+
+                        // 工业场景可选：非主动断开则自动重连
+                        // if (status != 0) {
+                        //     connectHandler.postDelayed({
+                        //         connectDevice(device, bleCallback!!)
+                        //     }, 3000)
+                        // }
+
+                        // 释放资源（必须调用，否则蓝牙卡死）
+                        gatt.close()
+                        bluetoothGatt = null
+                    }
+                }
+
+                // 连接失败处理
+                if (status != BluetoothGatt.GATT_SUCCESS && newState != BluetoothProfile.STATE_CONNECTED) {
+                    isConnecting = false
+                    DebugLog.e("设备连接失败：${device.address}，错误码：$status")
+                    gatt.close()
+                    bluetoothGatt = null
+                }
+            }
+
+            // 服务发现成功回调
+            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                super.onServicesDiscovered(gatt, status)
+                val device = gatt.device
+                isConnecting = false
+
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    val services = gatt.services
+                    DebugLog.e("发现设备服务：${services.size}个")
+
+                    // 打印服务/特征值（调试用）
+                    services.forEach { service ->
+                        DebugLog.e("服务UUID：${service.uuid}")
+                        service.characteristics.forEach { char ->
+                            DebugLog.e("  特征值UUID：${char.uuid}，属性：${char.properties}")
+                        }
+                    }
+
+                    // 示例：读取设备名称特征值（工业场景可替换为传感器UUID）
+                    services.find { it.uuid == UUID_GENERIC_ACCESS }?.let { accessService ->
+                        accessService.characteristics.find { it.uuid == UUID_DEVICE_NAME }?.let { nameChar ->
+                            readCharacteristic(nameChar)
+                        }
+                    }
+                } else {
+                    DebugLog.e("服务发现失败：${device.address}，状态码：$status")
+                }
+            }
+
+            // 特征值读取结果回调
+            override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+                super.onCharacteristicRead(gatt, characteristic, status)
+                isConnecting = false
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    val value = characteristic.value
+                    DebugLog.e("特征值读取成功：${String(value)}")
+                } else {
+                    DebugLog.e("特征值读取失败，状态码：$status")
+                }
+            }
+        })
+
+        // 连接超时处理
+        connectHandler.postDelayed({
+            if (isConnecting) {
+                isConnecting = false
+                bluetoothGatt?.disconnect()
+                bluetoothGatt?.close()
+                bluetoothGatt = null
+                connectCallback?.onConnectedState("连接超时：${device.address}")
+                DebugLog.e("连接超时：${device.address}")
+            }
+        }, CONNECT_TIMEOUT)
+    }
+
+    @SuppressLint("MissingPermission")
+    fun readCharacteristic(characteristic: BluetoothGattCharacteristic) {
+        if (bluetoothGatt == null || !checkBLEAvailable()) {
+            DebugLog.e("GATT未连接，无法读取特征值")
+            return
+        }
+        bluetoothGatt?.readCharacteristic(characteristic)
     }
 }

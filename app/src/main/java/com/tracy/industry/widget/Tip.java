@@ -57,7 +57,6 @@ public class Tip {
             if (mToast == null) {
                 mToast = Toast.makeText(MyApplication.Companion.getInstance().getApplicationContext(), "", Toast.LENGTH_SHORT);
             }
-            mToast.setGravity(Gravity.CENTER,0,0);
             mToast.setText(message);
             mToast.show();
         }

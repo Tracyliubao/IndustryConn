@@ -1,6 +1,7 @@
 package com.tracy.industry.page.main
 
 import android.Manifest
+import android.bluetooth.BluetoothDevice
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
@@ -8,12 +9,17 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.view.View
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.industrial.app.ble.BLEManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.tracy.industry.util.BLEManager
 import com.tracy.industry.R
 import com.tracy.industry.base.BaseBindingActivityKt
+import com.tracy.industry.base.BaseBindingAdapterKt
 import com.tracy.industry.databinding.ActivityMainBinding
+import com.tracy.industry.page.adapter.BluetoothAdapter
 import com.tracy.industry.service.ForegroundService
 import com.tracy.industry.ui.theme.generateViewModel
 import com.tracy.industry.ui.theme.showMessage
@@ -35,6 +41,9 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     private val TEST_HEX_COMMAND = "01030200648439"
 
     private var foreService: ForegroundService? = null
+
+    private lateinit var deviceAdapter: BluetoothAdapter
+    private var deviceList = mutableListOf<BluetoothDevice>()
 
     private val bleManager by lazy {
         BLEManager.getInstance(this)
@@ -276,7 +285,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                             "未知"
                         }
                         val deviceInfo = "名称：$name\n地址：$addr\n信号：$rssi dBm\n\n"
-                        mBinding.tvDeviceList.append(deviceInfo)
+                        deviceList.add(device)
                     }
                 }
 
@@ -285,7 +294,23 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                 }
 
                 override fun onScanStop() {
-                    DebugLog.e("扫描已停止")
+                    if (deviceList.size > 0){
+                        deviceAdapter = BluetoothAdapter()
+                        mBinding.rvDeviceList.layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.VERTICAL, false)
+                        deviceAdapter.list = deviceList
+                        mBinding.rvDeviceList.adapter = deviceAdapter
+                        deviceAdapter.listenerClick = object : BaseBindingAdapterKt.OnItemClickListener<BluetoothDevice>{
+                            override fun onClickItem(view: View, position: Int, data: BluetoothDevice) {
+                                // 连接设备
+                                bleManager.connectDevice(data, object : BLEManager.BLEConnectCallback{
+                                    override fun onConnectedState(message: String) {
+                                        showMessage(message)
+//                                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                                    }
+                                })
+                            }
+                        }
+                    }
                 }
 
                 override fun onScanError(errorCode: Int) {

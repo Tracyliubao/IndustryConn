@@ -222,10 +222,10 @@
                 app:layout_constraintTop_toTopOf="parent"
                 />
 
-            <TextView
-                android:id="@+id/tv_device_list"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_device_list"
+                android:layout_width="220dp"
+                android:layout_height="200dp"
                 android:textSize="16sp"
                 android:layout_marginLeft="20dp"
                 android:hint="扫描到的BLE设备将显示在这里..."
