@@ -21,6 +21,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import com.tracy.industry.base.MyApplication
 import java.util.UUID
 
 class BLEManager private constructor(private val context: Context) {
@@ -71,9 +72,9 @@ class BLEManager private constructor(private val context: Context) {
         @Volatile
         private var INSTANCE: BLEManager? = null
 
-        fun getInstance(context: Context): BLEManager {
+        fun getInstance(): BLEManager {
             return INSTANCE ?: synchronized(this) {
-                val instance = BLEManager(context.applicationContext)
+                val instance = BLEManager(MyApplication.instance)
                 INSTANCE = instance
                 instance
             }

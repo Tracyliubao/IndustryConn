@@ -10,7 +10,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.view.View
-import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -46,7 +45,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     private var deviceList = mutableListOf<BluetoothDevice>()
 
     private val bleManager by lazy {
-        BLEManager.getInstance(this)
+        BLEManager.getInstance()
     }
 
     override fun createViewModel(): MainViewModel = generateViewModel(MainViewModel::class.java)

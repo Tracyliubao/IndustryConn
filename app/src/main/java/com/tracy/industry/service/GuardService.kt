@@ -1,14 +1,10 @@
 package com.tracy.industry.service
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
-import androidx.core.app.NotificationCompat
 import com.tracy.industry.util.DebugLog
 import java.util.Timer
 import java.util.TimerTask
