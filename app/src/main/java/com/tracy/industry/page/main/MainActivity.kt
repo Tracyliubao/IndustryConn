@@ -2,6 +2,8 @@ package com.tracy.industry.page.main
 
 import android.Manifest
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattService
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
@@ -43,6 +45,9 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
 
     private lateinit var deviceAdapter: BluetoothAdapter
     private var deviceList = mutableListOf<BluetoothDevice>()
+
+    private var writeCharacteristic: BluetoothGattCharacteristic? = null
+    private var notifyCharacteristic: BluetoothGattCharacteristic? = null
 
     private val bleManager by lazy {
         BLEManager.getInstance()
@@ -204,6 +209,17 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                 showMessage("请先开启蓝牙")
             }
         }
+
+        mBinding.tvWriteChar.setOnClickListener {
+            val data = "123456"
+            writeCharacteristic?.let { char ->
+                // 字符串转字节数组（工业场景可替换为16进制/自定义格式）
+                val message = bleManager.writeCharacteristic(char, data.toByteArray())
+                mBinding.tvWriteChar.text = message
+            } ?: run {
+                showMessage("未找到可写特征值")
+            }
+        }
     }
 
     private fun initObserver(){
@@ -304,7 +320,37 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                                 bleManager.connectDevice(data, object : BLEManager.BLEConnectCallback{
                                     override fun onConnectedState(message: String) {
                                         showMessage(message)
-//                                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                                    }
+
+                                    override fun onServicesFound(services: List<BluetoothGattService>) {
+                                        runOnUiThread {
+                                            // 原服务信息展示（保留）
+                                            val sb = StringBuilder()
+                                            sb.append("服务总数：${services.size}\n\n")
+                                            services.forEachIndexed { index, service ->
+                                                sb.append("服务${index+1}：${service.uuid}\n")
+                                                service.characteristics.forEach { char ->
+                                                    sb.append("  特征值：${char.uuid}，属性：${char.properties}\n")
+                                                    // 🔥 筛选可写特征值（工业场景可按UUID筛选）
+                                                    if ((char.properties and BLEManager.PROPERTY_WRITE) != 0) {
+                                                        writeCharacteristic = char
+                                                    }
+                                                    // 🔥 筛选可通知特征值
+                                                    if ((char.properties and BLEManager.PROPERTY_NOTIFY) != 0) {
+                                                        notifyCharacteristic = char
+                                                    }
+                                                }
+                                                sb.append("\n")
+                                            }
+                                            mBinding.tvDeviceInfo.text = "服务信息：\n$sb"
+                                        }
+                                    }
+
+                                    override fun onCharacteristicData(
+                                        uuid: String,
+                                        data: ByteArray
+                                    ) {
+
                                     }
                                 })
                             }

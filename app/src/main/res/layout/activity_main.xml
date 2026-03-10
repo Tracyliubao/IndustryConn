@@ -234,6 +234,30 @@
                 app:layout_constraintTop_toTopOf="parent"
                 />
 
+            <TextView
+                android:id="@+id/tv_device_info"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:background="@color/teal_200"
+                android:hint="设备信息"
+                android:gravity="center"
+                android:layout_marginLeft="20dp"
+                app:layout_constraintStart_toEndOf="@id/rv_device_list"
+                app:layout_constraintTop_toTopOf="parent"
+                />
+
+            <TextView
+                android:id="@+id/tv_write_char"
+                android:layout_width="100dp"
+                android:layout_height="40dp"
+                android:background="@color/purple_200"
+                android:text="写入特征值"
+                android:gravity="center"
+                android:layout_marginLeft="20dp"
+                app:layout_constraintStart_toEndOf="@id/tv_device_info"
+                app:layout_constraintTop_toTopOf="parent"
+                />
+
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

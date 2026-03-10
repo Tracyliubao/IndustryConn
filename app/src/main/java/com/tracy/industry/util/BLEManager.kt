@@ -7,6 +7,8 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.BluetoothLeScanner
@@ -57,6 +59,8 @@ class BLEManager private constructor(private val context: Context) {
 
     interface BLEConnectCallback{
         fun onConnectedState(message: String)
+        fun onServicesFound(services: List<BluetoothGattService>)
+        fun onCharacteristicData(uuid: String, data: ByteArray)
     }
 
     private var scanCallback: BLEScanCallback? = null
@@ -79,6 +83,10 @@ class BLEManager private constructor(private val context: Context) {
                 instance
             }
         }
+
+        const val PROPERTY_READ = 0x02 // 可读
+        const val PROPERTY_WRITE = 0x08 // 可写
+        const val PROPERTY_NOTIFY = 0x10 // 可通知（实时推送）
     }
 
     // ========== 1. 初始化检查 ==========
@@ -366,24 +374,11 @@ class BLEManager private constructor(private val context: Context) {
 
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     val services = gatt.services
-                    DebugLog.e("发现设备服务：${services.size}个")
+                    callback.onConnectedState("发现设备服务：${services.size}个")
 
-                    // 打印服务/特征值（调试用）
-                    services.forEach { service ->
-                        DebugLog.e("服务UUID：${service.uuid}")
-                        service.characteristics.forEach { char ->
-                            DebugLog.e("  特征值UUID：${char.uuid}，属性：${char.properties}")
-                        }
-                    }
-
-                    // 示例：读取设备名称特征值（工业场景可替换为传感器UUID）
-                    services.find { it.uuid == UUID_GENERIC_ACCESS }?.let { accessService ->
-                        accessService.characteristics.find { it.uuid == UUID_DEVICE_NAME }?.let { nameChar ->
-                            readCharacteristic(nameChar)
-                        }
-                    }
+                    callback.onServicesFound(services)
                 } else {
-                    DebugLog.e("服务发现失败：${device.address}，状态码：$status")
+                    callback.onConnectedState("服务发现失败：${device.address}，状态码：$status")
                 }
             }
 
@@ -420,5 +415,60 @@ class BLEManager private constructor(private val context: Context) {
             return
         }
         bluetoothGatt?.readCharacteristic(characteristic)
+    }
+
+    @SuppressLint("MissingPermission")
+    fun writeCharacteristic(characteristic: BluetoothGattCharacteristic, data: ByteArray):String {
+        if (bluetoothGatt == null || !checkBLEAvailable()) {
+            return "GATT未连接，无法写入特征值"
+        }
+
+        // 检查特征值是否可写
+        if ((characteristic.properties and PROPERTY_WRITE) == 0) {
+            return "特征值不可写：${characteristic.uuid}"
+        }
+
+        // 设置写入数据
+        characteristic.value = data
+        // 发起写入（false=无响应写入，true=有响应写入，工业场景推荐true）
+        val success = bluetoothGatt?.writeCharacteristic(characteristic) ?: false
+        if (!success) {
+            return "写入特征值失败：${characteristic.uuid}"
+        } else {
+            return "写入数据成功：${String(data)}"
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun setCharacteristicNotification(characteristic: BluetoothGattCharacteristic, enable: Boolean) {
+        if (bluetoothGatt == null || !checkBLEAvailable()) {
+            DebugLog.e("GATT未连接，无法设置通知")
+            return
+        }
+
+        // 检查特征值是否支持通知
+        if ((characteristic.properties and PROPERTY_NOTIFY) == 0) {
+            DebugLog.e("特征值不支持通知：${characteristic.uuid}")
+            return
+        }
+
+        // 第一步：开启GATT通知
+        bluetoothGatt?.setCharacteristicNotification(characteristic, enable)
+
+        // 第二步：写入CCCD描述符（BLE通知必须步骤，工业开发必记）
+        val cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+        characteristic.descriptors.find { it.uuid == cccdUuid }?.let { descriptor ->
+            val value = if (enable) {
+                // 开启通知
+                BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            } else {
+                // 关闭通知
+                BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+            }
+            descriptor.value = value
+            bluetoothGatt?.writeDescriptor(descriptor)
+        }
+
+        DebugLog.e("${if (enable) "开启" else "关闭"}特征值通知：${characteristic.uuid}")
     }
 }
