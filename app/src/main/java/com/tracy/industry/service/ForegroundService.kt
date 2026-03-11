@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.work.WorkManager
+import com.tracy.industry.socket.WebSocketManager
 import com.tracy.industry.util.DebugLog
 import com.tracy.industry.util.SerialPortUtil
 import java.util.Timer
@@ -34,6 +35,8 @@ class ForegroundService: Service() {
     private lateinit var modbusUtil: SerialPortUtil
     private val collectExecutor = Executors.newSingleThreadScheduledExecutor()
 
+    private lateinit var wsManager: WebSocketManager
+
     private var temperatureText: String = ""
     private var count = 0
 
@@ -53,6 +56,7 @@ class ForegroundService: Service() {
             dataBits = 8,
             stopBits = 1,
             parity = 0 )
+        wsManager = WebSocketManager()
         // 1. 检测并引导关闭电池优化
         checkBatteryOptimization()
         // 2. 启动前台服务（提升进程优先级）
@@ -68,6 +72,8 @@ class ForegroundService: Service() {
 //        6. 定时采集设备数据
 //        7. 本地数据缓存
 //        8. 串口断连重连机制
+
+        initWebSocket()
     }
 
     // 心跳日志：核心是打印进程ID和Service名称
@@ -177,12 +183,96 @@ class ForegroundService: Service() {
 
     fun getTemperature(): String = temperatureText
 
+
+    private fun initWebSocket(){
+        val testWsUrl = "ws://ws.vi-server.org/mirror"
+        wsManager.init(testWsUrl, object : WebSocketManager.Callback {
+            override fun onConnectionStateChanged(isConnected: Boolean) {
+                // 连接状态变化（更新UI/记录状态）
+                DebugLog.e("长连接状态：$isConnected")
+            }
+
+            override fun onTextDataReceived(data: String) {
+                // 处理服务器下发的文本指令
+                handleServerTextCommand(data)
+            }
+
+            override fun onBinaryDataReceived(data: ByteArray) {
+                // 处理服务器下发的二进制配置
+                handleServerBinaryConfig(data)
+            }
+
+            override fun onError(code: Int, msg: String) {
+                // 异常处理（记录日志/上报监控）
+                DebugLog.e("长连接异常：$code -> $msg")
+            }
+        })
+        // 2. 启动连接
+        wsManager.connect()
+    }
+
+    /**
+     * 处理服务器文本指令（工业场景核心）
+     */
+    private fun handleServerTextCommand(cmd: String) {
+        when (cmd) {
+            // 示例：服务器下发BLE采集指令
+            "CMD:COLLECT_BLE" -> {
+                // 调用BLE工具类采集数据
+                val bleData = collectBLEData()
+                // 上传二进制数据
+                wsManager.sendBinaryData(bleData)
+                // 上报采集完成状态
+                wsManager.sendTextData("RESP:BLE_COLLECT_DONE")
+            }
+            // 示例：服务器下发串口控制指令
+            "CMD:SERIAL_CTRL_ON" -> {
+                // 调用串口工具类执行指令
+                sendSerialCommand("DEVICE_ON")
+                wsManager.sendTextData("RESP:SERIAL_CTRL_SUCCESS")
+            }
+        }
+    }
+
+    /**
+     * 处理服务器二进制配置
+     */
+    private fun handleServerBinaryConfig(config: ByteArray) {
+        // 解析工业设备参数（如采集频率、阈值）
+        DebugLog.e("解析设备配置，长度：${config.size}")
+        wsManager.sendTextData("RESP:CONFIG_PARSED_SUCCESS")
+    }
+
+    /**
+     * 模拟BLE数据采集（替换为实际逻辑）
+     */
+    private fun collectBLEData(): ByteArray {
+        // 示例：温湿度数据（0x01=设备ID，0x19=25℃，0x3C=60%）
+        return byteArrayOf(0x01, 0x19, 0x3C)
+    }
+
+    /**
+     * 模拟串口指令发送（替换为实际逻辑）
+     */
+    private fun sendSerialCommand(cmd: String) {
+        DebugLog.e("发送串口指令：$cmd")
+    }
+
+    /**
+     * 对外提供数据上传接口
+     */
+    fun uploadDeviceData(data: ByteArray) {
+        wsManager.sendBinaryData(data)
+    }
+
+
     override fun onDestroy() {
         super.onDestroy()
         heartbeatTimer?.cancel()
         // 停止前台Service（可选，销毁时移除通知）
         stopForeground(STOP_FOREGROUND_REMOVE)
         WorkManager.getInstance(this).cancelUniqueWork(WORK_NAME)
+        wsManager.release()
         DebugLog.e("ForegroundService已销毁，通知栏移除")
     }
 }
