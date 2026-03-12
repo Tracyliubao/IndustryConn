@@ -1,9 +1,7 @@
 package com.tracy.industry.socket
 
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import com.tracy.industry.base.MyApplication
 import com.tracy.industry.util.DebugLog
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,7 +26,7 @@ import java.util.concurrent.TimeUnit
 class WebSocketManager {
     companion object {
         // 心跳间隔（工业标准30秒）
-        private const val HEARTBEAT_INTERVAL = 30 * 1000L
+        private const val HEARTBEAT_INTERVAL = 5 * 1000L
         // 重连间隔（3秒，避免频繁重试）
         private const val RECONNECT_INTERVAL = 3 * 1000L
         // 最大重连次数（-1表示无限重连）
@@ -60,7 +58,7 @@ class WebSocketManager {
         override fun run() {
             if (isConnected) {
                 // 发送工业级ping包
-                webSocket?.send(ByteString.EMPTY)
+                webSocket?.send("ping")
                 DebugLog.e("发送心跳ping包")
             }
             // 直接用this，指向当前Runnable，循环执行
@@ -221,7 +219,7 @@ class WebSocketManager {
      */
     fun sendBinaryData(data: ByteArray): Boolean {
         return if (isConnected && webSocket != null) {
-            webSocket?.send(data.toString())
+            webSocket?.send(ByteString.of(*data))
             DebugLog.e("发送二进制数据，长度：${data.size}")
             true
         } else {

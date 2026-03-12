@@ -83,7 +83,7 @@ class ForegroundService: Service() {
             override fun run() {
                 // 获取当前进程ID
                 val pid = android.os.Process.myPid()
-                DebugLog.e("【ForegroundService】存活中 | 进程ID：$pid | 时间：${System.currentTimeMillis()}")
+//                DebugLog.e("【ForegroundService】存活中 | 进程ID：$pid | 时间：${System.currentTimeMillis()}")
 
                 // 主动检查 GuardService 是否存活
                 if (!isServiceRunning(GuardService::class.java.name)) {
@@ -185,7 +185,7 @@ class ForegroundService: Service() {
 
 
     private fun initWebSocket(){
-        val testWsUrl = "ws://ws.vi-server.org/mirror"
+        val testWsUrl = "wss://ws.postman-echo.com/raw"
         wsManager.init(testWsUrl, object : WebSocketManager.Callback {
             override fun onConnectionStateChanged(isConnected: Boolean) {
                 // 连接状态变化（更新UI/记录状态）

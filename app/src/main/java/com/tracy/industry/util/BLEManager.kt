@@ -95,7 +95,7 @@ class BLEManager private constructor(private val context: Context) {
      * @return true=可用，false=不可用
      */
     fun checkBLEAvailable(): Boolean {
-        // 🔥 修改：注释掉「必须支持BLE硬件」的校验（部分平板检测不准，但实际能扫描）
+        // 修改：注释掉「必须支持BLE硬件」的校验（部分平板检测不准，但实际能扫描）
         // if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
         //     Log.e(TAG, "设备不支持BLE")
         //     return false
