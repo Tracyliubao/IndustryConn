@@ -22,6 +22,7 @@ import com.tracy.industry.base.BaseBindingAdapterKt
 import com.tracy.industry.databinding.ActivityMainBinding
 import com.tracy.industry.page.adapter.BluetoothAdapter
 import com.tracy.industry.service.ForegroundService
+import com.tracy.industry.socket.UdpSimpleManager
 import com.tracy.industry.ui.theme.generateViewModel
 import com.tracy.industry.ui.theme.showMessage
 import com.tracy.industry.util.ConfParams
@@ -48,6 +49,8 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
 
     private var writeCharacteristic: BluetoothGattCharacteristic? = null
     private var notifyCharacteristic: BluetoothGattCharacteristic? = null
+
+    private lateinit var udpManager: UdpSimpleManager
 
     private val bleManager by lazy {
         BLEManager.getInstance()
@@ -174,7 +177,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
 
         mBinding.tvState.postDelayed(kotlinx.coroutines.Runnable {
             mBinding.tvState.text = foreService?.getTemperature()
-        }, 1000)
+        }, 10000)
 
         mBinding.tvScan.setOnClickListener {
             if (bleManager.checkBLEAvailable()) {
@@ -220,6 +223,19 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                 showMessage("未找到可写特征值")
             }
         }
+
+        mBinding.tvUdp.setOnClickListener {
+            udpManager = UdpSimpleManager()
+            udpManager.init(object : UdpSimpleManager.UdpCallback{
+                override fun onReceive(message: String) {
+                    mBinding.tvUdpContent.text = message
+                }
+
+            })
+            udpManager.sendText("Hello")
+        }
+
+        mBinding.tvTcp.postDelayed({ mBinding.tvTcp.text = "长连接状态:${foreService?.isSocketConnected()}" }, 10000)
     }
 
     private fun initObserver(){
@@ -523,6 +539,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         unbindService(serviceConnection)
         // 停止扫描，释放资源
         bleManager.stopScan()
+        udpManager.release()
     }
 
 }

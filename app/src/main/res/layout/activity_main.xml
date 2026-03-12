@@ -260,6 +260,51 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cl_content4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cl_content3">
+
+        <TextView
+            android:id="@+id/tv_tcp"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:background="@color/purple_200"
+            android:gravity="center"
+            android:hint="TCP连接状态"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
+        <TextView
+            android:id="@+id/tv_udp"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:background="@color/teal_200"
+            android:gravity="center"
+            android:hint="Udp发送：Hello"
+            android:layout_marginLeft="20dp"
+            app:layout_constraintStart_toEndOf="@id/tv_tcp"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
+        <TextView
+            android:id="@+id/tv_udp_content"
+            android:layout_width="100dp"
+            android:layout_height="40dp"
+            android:background="@color/teal_200"
+            android:gravity="center"
+            android:hint="接收UDP消息"
+            android:layout_marginLeft="20dp"
+            app:layout_constraintStart_toEndOf="@id/tv_udp"
+            app:layout_constraintTop_toTopOf="parent"
+            />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </layout>

@@ -38,6 +38,7 @@ class ForegroundService: Service() {
     private lateinit var wsManager: WebSocketManager
 
     private var temperatureText: String = ""
+    private var isConnect = false
     private var count = 0
 
     override fun onBind(intent: Intent?): IBinder {
@@ -183,6 +184,8 @@ class ForegroundService: Service() {
 
     fun getTemperature(): String = temperatureText
 
+    fun isSocketConnected(): Boolean = isConnect
+
 
     private fun initWebSocket(){
         val testWsUrl = "wss://ws.postman-echo.com/raw"
@@ -190,6 +193,7 @@ class ForegroundService: Service() {
             override fun onConnectionStateChanged(isConnected: Boolean) {
                 // 连接状态变化（更新UI/记录状态）
                 DebugLog.e("长连接状态：$isConnected")
+                isConnect = isConnected
             }
 
             override fun onTextDataReceived(data: String) {
