@@ -58,13 +58,12 @@ class BLEManager private constructor(private val context: Context) {
     }
 
     interface BLEConnectCallback{
-        fun onConnectedState(message: String)
+        fun onConnectedState(isConnected: Boolean)
         fun onServicesFound(services: List<BluetoothGattService>)
         fun onCharacteristicData(uuid: String, data: ByteArray)
     }
 
     private var scanCallback: BLEScanCallback? = null
-    private var connectCallback: BLEConnectCallback? = null
 
     // 通用服务/特征值UUID（工业设备通用，可替换为设备专属UUID）
     val UUID_GENERIC_ACCESS = UUID.fromString("00001800-0000-1000-8000-00805f9b34fb")
@@ -315,7 +314,6 @@ class BLEManager private constructor(private val context: Context) {
     @SuppressLint("MissingPermission")
     fun connectDevice(device: BluetoothDevice, callback: BLEConnectCallback) {
         // 透传连接阶段回调
-        this.connectCallback = callback
         isConnecting = true
         // 关闭旧连接
         bluetoothGatt?.close()
@@ -332,7 +330,7 @@ class BLEManager private constructor(private val context: Context) {
                     // 连接成功
                     BluetoothProfile.STATE_CONNECTED -> {
                         DebugLog.e("设备连接成功：${device.address}")
-                        connectCallback?.onConnectedState("设备连接成功：${device.address}")
+                        callback.onConnectedState(true)
                         isConnecting = false
                         // 必须调用：发现设备服务（连接成功后唯一入口）
                         gatt.discoverServices()
@@ -341,7 +339,7 @@ class BLEManager private constructor(private val context: Context) {
                     // 断开连接
                     BluetoothProfile.STATE_DISCONNECTED -> {
                         DebugLog.e("设备断开连接：${device.address}，状态码：$status")
-                        connectCallback?.onConnectedState("设备断开连接：${device.address}，状态码：$status")
+                        callback.onConnectedState(false)
                         isConnecting = false
 
                         // 工业场景可选：非主动断开则自动重连
@@ -361,6 +359,7 @@ class BLEManager private constructor(private val context: Context) {
                 if (status != BluetoothGatt.GATT_SUCCESS && newState != BluetoothProfile.STATE_CONNECTED) {
                     isConnecting = false
                     DebugLog.e("设备连接失败：${device.address}，错误码：$status")
+                    callback.onConnectedState(false)
                     gatt.close()
                     bluetoothGatt = null
                 }
@@ -374,11 +373,9 @@ class BLEManager private constructor(private val context: Context) {
 
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     val services = gatt.services
-                    callback.onConnectedState("发现设备服务：${services.size}个")
-
                     callback.onServicesFound(services)
                 } else {
-                    callback.onConnectedState("服务发现失败：${device.address}，状态码：$status")
+                    callback.onConnectedState(false)
                 }
             }
 
@@ -394,18 +391,6 @@ class BLEManager private constructor(private val context: Context) {
                 }
             }
         })
-
-        // 连接超时处理
-        connectHandler.postDelayed({
-            if (isConnecting) {
-                isConnecting = false
-                bluetoothGatt?.disconnect()
-                bluetoothGatt?.close()
-                bluetoothGatt = null
-                connectCallback?.onConnectedState("连接超时：${device.address}")
-                DebugLog.e("连接超时：${device.address}")
-            }
-        }, CONNECT_TIMEOUT)
     }
 
     @SuppressLint("MissingPermission")

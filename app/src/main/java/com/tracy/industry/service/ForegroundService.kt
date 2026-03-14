@@ -284,8 +284,9 @@ class ForegroundService: Service() {
     /**
      * 对外提供数据上传接口
      */
-    fun uploadDeviceData(data: ByteArray) {
-        wsManager.sendBinaryData(data)
+    fun uploadDeviceData(data: String) {
+        wsManager.sendTextData(data)
+        DebugLog.e("发送成功")
     }
 
     /**

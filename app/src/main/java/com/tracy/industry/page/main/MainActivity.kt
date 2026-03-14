@@ -45,6 +45,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     private var foreService: ForegroundService? = null
 
     private lateinit var deviceAdapter: BluetoothAdapter
+    private var isDeviceConnected = false
 
     private var writeCharacteristic: BluetoothGattCharacteristic? = null
     private var notifyCharacteristic: BluetoothGattCharacteristic? = null
@@ -296,32 +297,20 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                         override fun onClickItem(view: View, position: Int, data: BluetoothDevice) {
                             // 连接设备
                             bleManager.connectDevice(data, object : BLEManager.BLEConnectCallback{
-                                override fun onConnectedState(message: String) {
-                                    showMessage(message)
+                                override fun onConnectedState(isConn: Boolean) {
+                                    runOnUiThread {
+                                        if (isConn){
+                                            mBinding.tvDeviceInfo.text = "已连接"
+                                            foreService?.uploadDeviceData("数据上传")
+                                        }
+                                        else{
+                                            mBinding.tvDeviceInfo.text = "未连接"
+                                        }
+                                    }
                                 }
 
                                 override fun onServicesFound(services: List<BluetoothGattService>) {
-                                    runOnUiThread {
-                                        // 原服务信息展示（保留）
-                                        val sb = StringBuilder()
-                                        sb.append("服务总数：${services.size}\n\n")
-                                        services.forEachIndexed { index, service ->
-                                            sb.append("服务${index+1}：${service.uuid}\n")
-                                            service.characteristics.forEach { char ->
-                                                sb.append("  特征值：${char.uuid}，属性：${char.properties}\n")
-                                                // 🔥 筛选可写特征值（工业场景可按UUID筛选）
-                                                if ((char.properties and BLEManager.PROPERTY_WRITE) != 0) {
-                                                    writeCharacteristic = char
-                                                }
-                                                // 🔥 筛选可通知特征值
-                                                if ((char.properties and BLEManager.PROPERTY_NOTIFY) != 0) {
-                                                    notifyCharacteristic = char
-                                                }
-                                            }
-                                            sb.append("\n")
-                                        }
-                                        mBinding.tvDeviceInfo.text = "服务信息：\n$sb"
-                                    }
+
                                 }
 
                                 override fun onCharacteristicData(
@@ -414,6 +403,8 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
             val allGranted = grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }
             if (allGranted) {
                 mBinding.tvScan.text = "权限已获取，开始扫描"
+                // 权限获取成功后，重新开始扫描
+                updateDeviceList()
             } else {
                 showMessage("BLE权限被拒绝，无法扫描设备")
             }
