@@ -45,7 +45,6 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     private var foreService: ForegroundService? = null
 
     private lateinit var deviceAdapter: BluetoothAdapter
-    private var deviceList = mutableListOf<BluetoothDevice>()
 
     private var writeCharacteristic: BluetoothGattCharacteristic? = null
     private var notifyCharacteristic: BluetoothGattCharacteristic? = null
@@ -184,7 +183,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                 // 检查权限
                 if (bleManager.checkBLEPermissions()) {
                     // 权限已获取，开始扫描
-                    startBLEScan()
+                    mBinding.tvScan.text = "权限已获取，开始扫描"
                 } else {
                     // 申请权限
                     val need = bleManager.getNeedRequestPermissions()
@@ -192,7 +191,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                         ?.distinct()
                         ?.toTypedArray() ?: emptyArray()
                     if (need.isEmpty()) {
-                        startBLEScan()
+                        mBinding.tvScan.text = "权限已获取，开始扫描"
                     } else {
                         try {
                             ActivityCompat.requestPermissions(
@@ -201,16 +200,17 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
                                 REQUEST_BLE_PERMISSIONS
                             )
                         } catch (_: IllegalArgumentException) {
-                            showMessage("权限列表为空或包含非法项，已跳过并开始扫描")
-                            startBLEScan()
+                            mBinding.tvScan.text = "权限未获取"
                         }
                     }
                 }
             } else {
                 // 打开蓝牙设置
-                bleManager.openBluetoothSettings()
-                showMessage("请先开启蓝牙")
+                mBinding.tvScan.text = "蓝牙未开启"
             }
+
+            updateDeviceList()
+
         }
 
         mBinding.tvWriteChar.setOnClickListener {
@@ -282,103 +282,60 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         bindService(Intent(this, ForegroundService::class.java), serviceConnection, BIND_AUTO_CREATE)
     }
 
-    private fun startBLEScan() {
-        bleManager.startScan(
-            filterName = null, // 移除名称过滤，扫周边所有蓝牙设备
-            callback = object : BLEManager.BLEScanCallback {
-                override fun onDeviceFound(device: android.bluetooth.BluetoothDevice, rssi: Int, scanRecord: ByteArray?) {
-                    // 更新UI（必须在主线程）
-                    runOnUiThread {
-                        val name = try {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                                    device.name ?: "未知"
-                                } else {
-                                    "未知"
+    private fun updateDeviceList() {
+        val deviceScanCompleted = foreService?.isDeviceScanCompleted() ?: false
+        val deviceList = foreService?.getBLEDeviceList()
+        if (deviceScanCompleted){
+            deviceList?.apply {
+                if (this.size > 0){
+                    deviceAdapter = BluetoothAdapter()
+                    mBinding.rvDeviceList.layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.VERTICAL, false)
+                    deviceAdapter.list = this
+                    mBinding.rvDeviceList.adapter = deviceAdapter
+                    deviceAdapter.listenerClick = object : BaseBindingAdapterKt.OnItemClickListener<BluetoothDevice>{
+                        override fun onClickItem(view: View, position: Int, data: BluetoothDevice) {
+                            // 连接设备
+                            bleManager.connectDevice(data, object : BLEManager.BLEConnectCallback{
+                                override fun onConnectedState(message: String) {
+                                    showMessage(message)
                                 }
-                            } else {
-                                device.name ?: "未知"
-                            }
-                        } catch (_: SecurityException) {
-                            "未知"
-                        }
-                        val addr = try {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-                                    device.address
-                                } else {
-                                    "未知"
-                                }
-                            } else {
-                                device.address
-                            }
-                        } catch (_: SecurityException) {
-                            "未知"
-                        }
-                        val deviceInfo = "名称：$name\n地址：$addr\n信号：$rssi dBm\n\n"
-                        deviceList.add(device)
-                    }
-                }
 
-                override fun onScanStart() {
-                    DebugLog.e("扫描中...")
-                }
-
-                override fun onScanStop() {
-                    if (deviceList.size > 0){
-                        deviceAdapter = BluetoothAdapter()
-                        mBinding.rvDeviceList.layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.VERTICAL, false)
-                        deviceAdapter.list = deviceList
-                        mBinding.rvDeviceList.adapter = deviceAdapter
-                        deviceAdapter.listenerClick = object : BaseBindingAdapterKt.OnItemClickListener<BluetoothDevice>{
-                            override fun onClickItem(view: View, position: Int, data: BluetoothDevice) {
-                                // 连接设备
-                                bleManager.connectDevice(data, object : BLEManager.BLEConnectCallback{
-                                    override fun onConnectedState(message: String) {
-                                        showMessage(message)
-                                    }
-
-                                    override fun onServicesFound(services: List<BluetoothGattService>) {
-                                        runOnUiThread {
-                                            // 原服务信息展示（保留）
-                                            val sb = StringBuilder()
-                                            sb.append("服务总数：${services.size}\n\n")
-                                            services.forEachIndexed { index, service ->
-                                                sb.append("服务${index+1}：${service.uuid}\n")
-                                                service.characteristics.forEach { char ->
-                                                    sb.append("  特征值：${char.uuid}，属性：${char.properties}\n")
-                                                    // 🔥 筛选可写特征值（工业场景可按UUID筛选）
-                                                    if ((char.properties and BLEManager.PROPERTY_WRITE) != 0) {
-                                                        writeCharacteristic = char
-                                                    }
-                                                    // 🔥 筛选可通知特征值
-                                                    if ((char.properties and BLEManager.PROPERTY_NOTIFY) != 0) {
-                                                        notifyCharacteristic = char
-                                                    }
+                                override fun onServicesFound(services: List<BluetoothGattService>) {
+                                    runOnUiThread {
+                                        // 原服务信息展示（保留）
+                                        val sb = StringBuilder()
+                                        sb.append("服务总数：${services.size}\n\n")
+                                        services.forEachIndexed { index, service ->
+                                            sb.append("服务${index+1}：${service.uuid}\n")
+                                            service.characteristics.forEach { char ->
+                                                sb.append("  特征值：${char.uuid}，属性：${char.properties}\n")
+                                                // 🔥 筛选可写特征值（工业场景可按UUID筛选）
+                                                if ((char.properties and BLEManager.PROPERTY_WRITE) != 0) {
+                                                    writeCharacteristic = char
                                                 }
-                                                sb.append("\n")
+                                                // 🔥 筛选可通知特征值
+                                                if ((char.properties and BLEManager.PROPERTY_NOTIFY) != 0) {
+                                                    notifyCharacteristic = char
+                                                }
                                             }
-                                            mBinding.tvDeviceInfo.text = "服务信息：\n$sb"
+                                            sb.append("\n")
                                         }
+                                        mBinding.tvDeviceInfo.text = "服务信息：\n$sb"
                                     }
+                                }
 
-                                    override fun onCharacteristicData(
-                                        uuid: String,
-                                        data: ByteArray
-                                    ) {
+                                override fun onCharacteristicData(
+                                    uuid: String,
+                                    data: ByteArray
+                                ) {
 
-                                    }
-                                })
-                            }
+                                }
+                            })
                         }
                     }
-                }
-
-                override fun onScanError(errorCode: Int) {
-                    DebugLog.e("扫描失败：$errorCode")
                 }
             }
-        )
+        }
     }
 
     private fun initPermission(){
@@ -456,8 +413,7 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         else if (requestCode == REQUEST_BLE_PERMISSIONS){
             val allGranted = grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }
             if (allGranted) {
-                // 权限授予，开始扫描
-                startBLEScan()
+                mBinding.tvScan.text = "权限已获取，开始扫描"
             } else {
                 showMessage("BLE权限被拒绝，无法扫描设备")
             }

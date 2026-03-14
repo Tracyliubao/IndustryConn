@@ -46,7 +46,22 @@ object IndustrialTimeUtils {
             if (timeInMillis < System.currentTimeMillis()) add(Calendar.DAY_OF_MONTH, 1)
         }
 
-        // 精准触发
+        // 检查是否有精确闹钟权限 (Android 12+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!alarmManager.canScheduleExactAlarms()) {
+                DebugLog.e("没有精确闹钟权限，使用非精确闹钟")
+                // 没有权限时使用非精确闹钟
+                alarmManager.setInexactRepeating(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    AlarmManager.INTERVAL_DAY,
+                    pendingIntent
+                )
+                return
+            }
+        }
+
+        // 有权限时使用精确闹钟
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
@@ -56,13 +71,6 @@ object IndustrialTimeUtils {
         } else {
             alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
         }
-        // 每天重复
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            calendar.timeInMillis,
-            AlarmManager.INTERVAL_DAY,
-            pendingIntent
-        )
     }
 
     // 取消校准

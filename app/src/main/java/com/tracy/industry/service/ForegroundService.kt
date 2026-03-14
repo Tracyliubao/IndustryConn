@@ -1,17 +1,29 @@
 package com.tracy.industry.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGattService
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.view.View
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.work.WorkManager
+import com.tracy.industry.base.BaseBindingAdapterKt
+import com.tracy.industry.page.adapter.BluetoothAdapter
 import com.tracy.industry.socket.WebSocketManager
+import com.tracy.industry.ui.theme.showMessage
+import com.tracy.industry.util.BLEManager
 import com.tracy.industry.util.DebugLog
 import com.tracy.industry.util.SerialPortUtil
 import java.util.Timer
@@ -39,7 +51,9 @@ class ForegroundService: Service() {
 
     private var temperatureText: String = ""
     private var isConnect = false
-    private var count = 0
+    private val bleManager by lazy { BLEManager.getInstance() }
+    private var deviceList = mutableListOf<BluetoothDevice>()
+    private var isScanCompleted = false
 
     override fun onBind(intent: Intent?): IBinder {
         return MyBinder(this)
@@ -186,6 +200,10 @@ class ForegroundService: Service() {
 
     fun isSocketConnected(): Boolean = isConnect
 
+    fun getBLEDeviceList(): MutableList<BluetoothDevice> = deviceList
+
+    fun isDeviceScanCompleted(): Boolean = isScanCompleted
+
 
     private fun initWebSocket(){
         val testWsUrl = "wss://ws.postman-echo.com/raw"
@@ -194,6 +212,7 @@ class ForegroundService: Service() {
                 // 连接状态变化（更新UI/记录状态）
                 DebugLog.e("长连接状态：$isConnected")
                 isConnect = isConnected
+                startScanBLE()
             }
 
             override fun onTextDataReceived(data: String) {
@@ -269,6 +288,49 @@ class ForegroundService: Service() {
         wsManager.sendBinaryData(data)
     }
 
+    /**
+     * 开始扫描设备
+     */
+    fun startScanBLE(){
+        if (bleManager.checkBLEAvailable()) {
+            // 检查权限
+            if (bleManager.checkBLEPermissions() && !isScanCompleted) {
+                // 权限已获取，开始扫描
+                scanBLE()
+            }
+            else {
+                DebugLog.e("无此权限")
+            }
+        }
+        else {
+            DebugLog.e("请先开启蓝牙")
+        }
+    }
+
+    private fun scanBLE() {
+        bleManager.startScan(
+            filterName = null, // 移除名称过滤，扫周边所有蓝牙设备
+            callback = object : BLEManager.BLEScanCallback {
+                override fun onDeviceFound(device: BluetoothDevice, rssi: Int, scanRecord: ByteArray?) {
+                    deviceList.add(device)
+                }
+
+                override fun onScanStart() {
+                    DebugLog.e("扫描中...")
+                }
+
+                override fun onScanStop() {
+                    if (deviceList.size > 0){
+                        isScanCompleted = true
+                    }
+                }
+
+                override fun onScanError(errorCode: Int) {
+                    DebugLog.e("扫描失败：$errorCode")
+                }
+            }
+        )
+    }
 
     override fun onDestroy() {
         super.onDestroy()
