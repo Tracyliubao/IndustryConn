@@ -104,4 +104,10 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // 可选调试用
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
+    // 添加 LocalBroadcastManager 依赖
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
+
+    // 工业APP必用的Paho MQTT核心库（适配Android）
+    implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
+    implementation("org.eclipse.paho:org.eclipse.paho.android.service:1.1.1")
 }

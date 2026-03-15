@@ -109,6 +109,8 @@
             android:enabled="true"
             android:exported="false"
             android:process=":guard" /> <!-- 独立进程 -->
+
+        <service android:name="org.eclipse.paho.android.service.MqttService" />
     </application>
 
 </manifest>

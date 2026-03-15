@@ -25,6 +25,7 @@ import com.tracy.industry.socket.WebSocketManager
 import com.tracy.industry.ui.theme.showMessage
 import com.tracy.industry.util.BLEManager
 import com.tracy.industry.util.DebugLog
+import com.tracy.industry.util.MqttManager
 import com.tracy.industry.util.SerialPortUtil
 import java.util.Timer
 import java.util.TimerTask
@@ -55,6 +56,11 @@ class ForegroundService: Service() {
     private var deviceList = mutableListOf<BluetoothDevice>()
     private var isScanCompleted = false
 
+    /**
+     * 新增MQTT管理器
+     */
+    private lateinit var mqttManager: MqttManager
+
     override fun onBind(intent: Intent?): IBinder {
         return MyBinder(this)
     }
@@ -66,6 +72,7 @@ class ForegroundService: Service() {
     override fun onCreate() {
         super.onCreate()
         powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        mqttManager = MqttManager()
         modbusUtil = SerialPortUtil(portPath = "/dev/ttyS1",
             baudRate = 9600,
             dataBits = 8,
@@ -88,7 +95,13 @@ class ForegroundService: Service() {
 //        7. 本地数据缓存
 //        8. 串口断连重连机制
 
-        initWebSocket()
+//        initWebSocket()
+        mqttManager.connect(onSuccess = {
+            DebugLog.e("MQTT连接成功")
+            startScanBLE()
+        }, onFailed = {msg ->
+            DebugLog.e("MQTT连接失败: ${msg}")
+        })
     }
 
     // 心跳日志：核心是打印进程ID和Service名称
@@ -285,8 +298,9 @@ class ForegroundService: Service() {
      * 对外提供数据上传接口
      */
     fun uploadDeviceData(data: String) {
-        wsManager.sendTextData(data)
         DebugLog.e("发送成功")
+//        wsManager.sendTextData(data)
+        mqttManager.publishBleData("MQTT", data)
     }
 
     /**
