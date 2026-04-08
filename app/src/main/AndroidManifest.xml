@@ -87,6 +87,7 @@
         </activity>
 
         <activity android:name=".page.store.StoreActivity"/>
+        <activity android:name=".page.serial.SerialPortActivity"/>
 
         <!-- 注册自启广播 -->
         <receiver android:name=".receiver.BootCompletedReceiver"
