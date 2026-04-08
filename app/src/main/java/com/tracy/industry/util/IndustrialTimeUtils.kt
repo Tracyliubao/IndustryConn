@@ -13,6 +13,8 @@ import com.tracy.industry.base.MyApplication
 import com.tracy.industry.receiver.IndustrialCalibrateReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -22,6 +24,8 @@ object IndustrialTimeUtils {
 
     private const val REQUEST_CODE = 1001
     private val mmkv = ConfParams.getMMKVInstance()
+    private val collectScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var collectJob: Job? = null
     /**
      * 计算从当前时间到「次日0点」的延迟（毫秒）
      * 用于每天0点校准的精准触发
@@ -94,7 +98,7 @@ object IndustrialTimeUtils {
 
     fun startCollectTask() {
         mmkv.encode(ConfParams.KEY_COLLECT_RUNNING, true)
-        // 1. WorkManager兜底（进程重启后恢复）
+        // 1. WorkManager 仅做兜底健康检查（不做 5s 高频采集）
         val constraints = Constraints.Builder()
             .setRequiresBatteryNotLow(true)
             .build()
@@ -108,10 +112,11 @@ object IndustrialTimeUtils {
                 workRequest
             )
 
-        // 2. 协程循环实现5s精准采集（核心）
-        CoroutineScope(Dispatchers.IO).launch {
+        // 2. 协程循环实现 5s 高频采集（核心，可停止）
+        collectJob?.cancel()
+        collectJob = collectScope.launch {
             while (true) {
-                // 写入日志
+                // 在这里执行真实采集任务（串口/BLE/TCP）
                 delay(5000) // 精准延迟5秒，无漂移
             }
         }
@@ -121,6 +126,9 @@ object IndustrialTimeUtils {
      * 停止采集
      */
     fun stopCollectTask() {
+        mmkv.encode(ConfParams.KEY_COLLECT_RUNNING, false)
+        collectJob?.cancel()
+        collectJob = null
         WorkManager.getInstance(MyApplication.instance).cancelUniqueWork("CollectTask")
     }
 }

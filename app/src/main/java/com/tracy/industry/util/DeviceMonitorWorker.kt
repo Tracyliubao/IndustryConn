@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import com.tracy.industry.base.MyApplication
 import com.tracy.industry.database.AppDatabase
 import com.tracy.industry.database.entity.DeviceEntity
 
@@ -21,7 +22,7 @@ class DeviceMonitorWorker(context: Context, params: WorkerParameters) : Worker(c
      * 判断当前网络状态
      */
     private fun isNetworkAvailable(): Boolean {
-        val cm = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cm = MyApplication.instance.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = cm.activeNetwork ?: return false
         val capabilities = cm.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)

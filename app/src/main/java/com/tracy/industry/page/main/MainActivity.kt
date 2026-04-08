@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.view.View
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -327,7 +328,26 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
         }
     }
 
+    /**
+     * 检测电池优化：若开启，引导用户关闭
+     */
+    private fun checkBatteryOptimization() {
+        // 判断应用是否在电池优化白名单中
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        val isIgnored = powerManager.isIgnoringBatteryOptimizations(packageName)
+        if (!isIgnored) {
+            // 跳转到电池优化设置页面，引导用户关闭
+            val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+            intent.data = android.net.Uri.parse("package:$packageName")
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+        }
+    }
+
     private fun initPermission(){
+
+        checkBatteryOptimization()
+
         // 1. 检查并申请所有必要权限
         val permissionsToRequest = mutableListOf<String>()
 

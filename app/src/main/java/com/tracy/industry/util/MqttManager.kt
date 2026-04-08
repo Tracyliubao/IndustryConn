@@ -81,7 +81,7 @@ class MqttManager {
     }
 
     /**
-     * 发布BLE数据（工业JSON格式，直接复用你Day20的格式）
+     * 发布BLE数据
      * @param topic 工业规范Topic：/industrial/ble/设备ID/数据类型
      * @param data 比如：{"deviceId":"BLE001","temp":25.5,"time":1710588000000}
      */
