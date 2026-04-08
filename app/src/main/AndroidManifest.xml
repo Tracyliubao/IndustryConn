@@ -86,6 +86,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".page.store.StoreActivity"/>
+
         <!-- 注册自启广播 -->
         <receiver android:name=".receiver.BootCompletedReceiver"
             android:exported="true">
