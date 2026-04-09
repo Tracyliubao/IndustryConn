@@ -28,7 +28,7 @@ class SerialPortUtil(
         private set
 
     private val TEST_READ_COMMAND = "0103020102"
-    private val TEST_WRITE_COMMAND = "010600010064980A"
+    private val TEST_WRITE_COMMAND = "010600010064D9E1"
     private val BUFFER_SIZE = 1024       // 接收缓冲区
     private val RECEIVE_TIMEOUT = 1000L  // 接收超时（ms）
     private val receiveExecutor = Executors.newSingleThreadExecutor() // 异步接收线程池
@@ -181,7 +181,6 @@ class SerialPortUtil(
             outputStream?.flush() // 强制刷新缓冲区（工业端避免数据滞留）
             DebugLog.e("十六进制指令发送成功！")
             DebugLog.e("发送指令（十六进制）：$hexStr")
-            DebugLog.e("发送数据（字节数组）：${bytesToHex(sendData)}")
             "发送成功"
         } catch (e: IOException) {
             DebugLog.e("发送失败：IO异常 - ${e.message}")
@@ -325,6 +324,7 @@ class SerialPortUtil(
 
         // 1. 构造Modbus读指令（十六进制字符串）
         val cmdHex = buildReadRegCmd(deviceAddr, startReg, regCount)
+        // 01 03 00 00 00 01
         DebugLog.e("构造读寄存器指令：$cmdHex")
 
         // 2. 发送指令 + 接收返回数据
@@ -420,6 +420,7 @@ class SerialPortUtil(
 
         // 1. 构造Modbus写指令
         val cmdHex = buildWriteRegCmd(deviceAddr, regAddr, value)
+        // 01 06 00 01 00 64
         DebugLog.e("构造写寄存器指令：$cmdHex")
 
         // 2. 发送指令 + 接收返回数据

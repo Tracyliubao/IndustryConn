@@ -72,7 +72,7 @@ class SerialPortActivity: BaseBindingActivityKt<ActivitySerialPortBinding, Seria
                     if (hexData != null) {
                         val temperature = serialPortUtil.parseTemperatureFromHex(hexData)
                         val parseResult = if (temperature != null) {
-                            "解析成功：$temperature℃"
+                            "解析后数字：$temperature"
                         } else {
                             "解析失败"
                         }
@@ -85,9 +85,7 @@ class SerialPortActivity: BaseBindingActivityKt<ActivitySerialPortBinding, Seria
         mBinding.tvRead.setOnClickListener {
             val regValues = serialPortUtil.readHoldingRegisters(deviceAddr = 1, startReg = 0, regCount = 1)
             if (regValues.isNotEmpty()) {
-                // 工业场景：温度值=寄存器值/10
-                val temperature = regValues[0] / 10.0
-                mBinding.tvRead.text = "寄存器原始值：${regValues[0]}，解析温度值：${temperature}℃"
+                mBinding.tvRead.text = "寄存器原始值：${regValues[0]}"
             } else {
                 mBinding.tvRead.text = "读寄存器失败"
             }
