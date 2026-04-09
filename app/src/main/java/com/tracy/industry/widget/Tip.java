@@ -20,39 +20,19 @@ public class Tip {
     }
 
     /**
-     * 短时间显示Toast,请用showShort(CharSequence message)来代替
-     *
-     * @param context
-     * @param message
-     */
-    @Deprecated
-    public static void showShort(Context context, CharSequence message) {
-        if (isShow) {
-            if (mToast == null) {
-                mToast = Toast.makeText(MyApplication.Companion.getInstance().getApplicationContext(), "", Toast.LENGTH_SHORT);
-            }
-            mToast.setGravity(Gravity.CENTER,0,0);
-            mToast.setText(message);
-            mToast.show();
-        }
-    }
-
-    /**
      * 短时间显示Toast
      *
      * @param message
      */
-    public static void showShort(CharSequence message) {
-        showShort(MyApplication.Companion.getInstance().getApplicationContext(), message);
+    public static void showShort(String message) {
+        showShortMessage(message);
     }
 
     /**
      * 短时间显示Toast
-     *
-     * @param context
      * @param message
      */
-    public static void showShort(Context context, int message) {
+    public static void showShortMessage(String message) {
         if (isShow) {
             if (mToast == null) {
                 mToast = Toast.makeText(MyApplication.Companion.getInstance().getApplicationContext(), "", Toast.LENGTH_SHORT);

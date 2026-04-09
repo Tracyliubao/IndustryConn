@@ -27,7 +27,7 @@ class SerialPortUtil(
     var isPortOpen = false // 串口是否打开（对外暴露状态）
         private set
 
-    private val TEST_READ_COMMAND = "01030200648439"
+    private val TEST_READ_COMMAND = "0103020102"
     private val TEST_WRITE_COMMAND = "010600010064980A"
     private val BUFFER_SIZE = 1024       // 接收缓冲区
     private val RECEIVE_TIMEOUT = 1000L  // 接收超时（ms）
@@ -293,21 +293,20 @@ class SerialPortUtil(
 
         try {
             // 1. 校验Modbus返回帧格式（工业协议固定规则）
-            // 示例帧：01 03 02 00 64 84 39
-            // 01=从站地址 03=功能码 02=数据长度 0064=温度值 8439=CRC校验
+            // 示例帧：01 03 02 01 02
+            // 01=从站地址 03=功能码 02=数据长度 0102=温度值 8439=CRC校验
             if (hexData.length < 8 || !hexData.startsWith("0103")) {
                 DebugLog.e("Modbus帧格式错误：$hexData")
                 return null
             }
 
-            // 2. 截取温度数据位（第7-10位，示例中是"0064"）
+            // 2. 截取数据位（第7-10位，示例中是"0102"）
             val tempHex = hexData.substring(6, 10)
-            // 3. 十六进制转十进制（0064=100）
+            // 3. 十六进制转十进制（0102=258）
             val tempInt = tempHex.toInt(16)
-            // 4. 工业场景：温度通常除以10（比如100=10.0℃，根据设备调整）
             return tempInt / 1.0
         } catch (e: Exception) {
-            DebugLog.e("解析温度失败：${e.message}")
+            DebugLog.e("转换十进制失败：${e.message}")
             return null
         }
     }

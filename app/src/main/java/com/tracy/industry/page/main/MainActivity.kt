@@ -199,32 +199,23 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
             ) {
                 permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
             }
-        }
-
-        // 检查存储读取权限
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-
-        // 检查存储写入权限
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        }
-
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_BACKGROUND_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionsToRequest.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            // Android 12 及以下：按系统版本申请存储权限
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
         }
 
         // 有需要申请的权限
@@ -250,15 +241,21 @@ class MainActivity : BaseBindingActivityKt<ActivityMainBinding, MainViewModel>()
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // 用户授予权限，
+            // 不能用 grantResults[0]，因为你可能一次申请了多个权限，顺序不稳定
+            val notiIndex = permissions.indexOf(Manifest.permission.POST_NOTIFICATIONS)
+            val notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && notiIndex >= 0) {
+                grantResults.getOrNull(notiIndex) == PackageManager.PERMISSION_GRANTED
             } else {
+                true
+            }
+            if (!notificationGranted) {
                 // 用户拒绝权限，通知无法显示，Service也无法正常运行
                 showMessage("用户拒绝了通知权限，前台Service无法显示常驻通知")
             }
+            prepareData()
         }
         else if (requestCode == REQUEST_BLE_PERMISSIONS){
-            val allGranted = grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }
+            val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
             if (allGranted) {
                 mBinding.tvScan.text = "权限已获取，开始扫描"
                 // 权限获取成功后，重新开始扫描

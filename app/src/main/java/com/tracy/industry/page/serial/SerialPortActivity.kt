@@ -24,7 +24,7 @@ class SerialPortActivity: BaseBindingActivityKt<ActivitySerialPortBinding, Seria
     // 工业设备常见串口路径（测试用，实际根据设备调整）
     private val serialPortPath = "/dev/ttyS1"
     private lateinit var serialPortUtil: SerialPortUtil
-    private val TEST_HEX_COMMAND = "01030200648439"
+    private val TEST_HEX_COMMAND = "010300000001"
 
     private var foreService: ForegroundService? = null
 

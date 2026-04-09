@@ -30,11 +30,12 @@
 
         <TextView
             android:id="@+id/tv_check_serial"
-            android:layout_width="100dp"
-            android:layout_height="40dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:background="@color/purple_200"
             android:text="查看串口信息"
             android:gravity="center"
+            android:padding="10dp"
             android:layout_marginTop="20dp"
             android:layout_gravity="center_horizontal"
             />
