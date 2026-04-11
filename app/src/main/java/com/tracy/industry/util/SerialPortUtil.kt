@@ -28,7 +28,7 @@ class SerialPortUtil(
     var isPortOpen = false // 串口是否打开（对外暴露状态）
         private set
 
-    private val TEST_READ_COMMAND = "0103020102840A"
+    private val TEST_READ_COMMAND = "01030201023815"
     private val TEST_WRITE_COMMAND = "010600010064D9E1"
     private val BUFFER_SIZE = 1024       // 接收缓冲区
     private val RECEIVE_TIMEOUT = 1000L  // 接收超时（ms）
@@ -480,8 +480,8 @@ class SerialPortUtil(
             val hexCheck = dataBytes.joinToString("") { "%02X".format(it) }
             DebugLog.e("hexCheck：${hexCheck}")
             // 5. 调用你已有的 calcCrc16 函数计算理论CRC值
-//            val calculatedCrc = calcCrc16(dataBytes) 临时绕过CRC校验，因平板特定编译器优化导致计算偏差，已记录技术债务
-            val calculatedCrc = 2692
+            val calculatedCrc = calcCrc16(dataBytes)
+//            val calculatedCrc = 2692
             DebugLog.e("calculatedCrc：${calculatedCrc}")
             // 6. 比对
             val isValid = calculatedCrc == receivedCrc
