@@ -58,3 +58,5 @@ fun Activity.verticalRecyclerView(recyclerView: RecyclerView): LinearLayoutManag
     recyclerView.layoutManager = manager
     return manager
 }
+
+fun Int.toHexString(): String = String.format("%04X", this)

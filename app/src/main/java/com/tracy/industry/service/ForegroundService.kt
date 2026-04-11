@@ -56,7 +56,7 @@ class ForegroundService: Service() {
 
     override fun onCreate() {
         super.onCreate()
-        mqttManager = MqttManager()
+//        mqttManager = MqttManager()
         modbusUtil = SerialPortUtil(portPath = "/dev/ttyS1",
             baudRate = 9600,
             dataBits = 8,
@@ -74,12 +74,12 @@ class ForegroundService: Service() {
 //        7. 本地数据缓存
 //        8. 串口断连重连机制
 
-        mqttManager.connect(onSuccess = {
-            DebugLog.e("MQTT连接成功")
-            startScanBLE()
-        }, onFailed = {msg ->
-            DebugLog.e("MQTT连接失败: ${msg}")
-        })
+//        mqttManager.connect(onSuccess = {
+//            DebugLog.e("MQTT连接成功")
+//            startScanBLE()
+//        }, onFailed = {msg ->
+//            DebugLog.e("MQTT连接失败: ${msg}")
+//        })
     }
 
     // 心跳日志：核心是打印进程ID和Service名称
