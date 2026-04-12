@@ -30,8 +30,10 @@ class SerialPortUtil(
 
     private val TEST_READ_COMMAND = "01030201023815"
     private val TEST_WRITE_COMMAND = "010600010064D9E1"
-    private val BUFFER_SIZE = 1024       // 接收缓冲区
-    private val RECEIVE_TIMEOUT = 1000L  // 接收超时（ms）
+    private val BUFFER_SIZE = 1024 // 接收缓冲区
+    private val MAX_RETRIES = 2 // 最多重试2次，加上第一次共3次尝试
+    private val RETRY_DELAY_MS = 100L // 每次重试前等待100毫秒
+    private val RECEIVE_TIMEOUT = 1000L // 接收超时（ms）
     private val receiveExecutor = Executors.newSingleThreadExecutor() // 异步接收线程池
 
     /**
@@ -323,34 +325,63 @@ class SerialPortUtil(
     fun readHoldingRegisters(deviceAddr: Int, startReg: Int, regCount: Int): List<Int> {
         if (!isPortOpen) return emptyList()
 
-        // 1. 构造Modbus读指令（十六进制字符串）
-        val cmdHex = buildReadRegCmd(deviceAddr, startReg, regCount)
-        // 01 03 00 00 00 01
-        DebugLog.e("构造读寄存器指令：$cmdHex")
+        var lastErrorReason = "" // 记录最后一次失败原因，用于调试
+        // 重试逻辑
+        repeat(MAX_RETRIES){ attempt ->
+            val currentAttempt = attempt + 1
+            if (attempt > 0){
+                Thread.sleep(RETRY_DELAY_MS)
+                DebugLog.e("Modbus重试：第${currentAttempt}次尝试，上次失败原因：$lastErrorReason")
+            }
+            // 1. 构造Modbus读指令（十六进制字符串）
+            val cmdHex = buildReadRegCmd(deviceAddr, startReg, regCount)
+            // 01 03 00 00 00 01
+            DebugLog.e("构造读寄存器指令：$cmdHex")
 
-        // 2. 发送指令 + 接收返回数据
-        val latch = CountDownLatch(1)
-        var receiveHex: String? = null
-        sendHexCommand(cmdHex)
-        receiveHexData(true) { hexData ->
-            receiveHex = hexData
-            latch.countDown()
-        }
+            // 2. 发送指令 + 接收返回数据
+            val latch = CountDownLatch(1)
+            var receiveHex: String? = null
+            sendHexCommand(cmdHex)
+            receiveHexData(true) { hexData ->
+                receiveHex = hexData
+                latch.countDown()
+            }
 
-        // 3. 等待接收（超时1秒）
-        try {
-            latch.await(RECEIVE_TIMEOUT, TimeUnit.MILLISECONDS)
-        } catch (e: InterruptedException) {
-            DebugLog.e("读寄存器超时")
-            return emptyList()
-        }
+            // 3. 等待接收（超时1秒）
+            val success = try {
+                latch.await(RECEIVE_TIMEOUT, TimeUnit.MILLISECONDS)
+            } catch (e: InterruptedException) {
+                false
+            }
 
-        // 4. 解析返回数据
-        return if (receiveHex != null) {
-            parseReadRegData(receiveHex!!, regCount)
-        } else {
-            emptyList()
+            if (!success) {
+                lastErrorReason = "接收超时"
+                DebugLog.e("Modbus读寄存器超时(尝试$currentAttempt)")
+                return@repeat // 继续下一次循环
+            }
+
+            val hexData = receiveHex
+            if (hexData.isNullOrEmpty()) {
+                lastErrorReason = "接收到空数据"
+                DebugLog.e("Modbus接收到空数据(尝试$currentAttempt)")
+                return@repeat
+            }
+
+            // 4. 校验CRC并解析
+            val regValues = parseReadRegData(hexData, regCount)
+            if (regValues.isNotEmpty()) {
+                // 成功！直接返回结果
+                DebugLog.e("Modbus读取成功(尝试$currentAttempt)：$regValues")
+                return regValues
+            } else {
+                lastErrorReason = "CRC校验失败或解析错误"
+                DebugLog.e("Modbus解析失败(尝试$currentAttempt)：$hexData")
+                // 继续下一次重试
+            }
         }
+        // 所有尝试都失败
+        DebugLog.e("Modbus读寄存器最终失败，已重试${MAX_RETRIES}次，最后错误：$lastErrorReason")
+        return emptyList()
     }
 
     /**
@@ -465,24 +496,17 @@ class SerialPortUtil(
         try {
             // 2. 提取数据部分（去掉最后4个字符，即2字节的CRC校验码）
             val dataPartHex = hexFrame.substring(0, hexFrame.length - 4)
-            DebugLog.e("dataPartHex：${dataPartHex}")
             // 3. 提取接收到的CRC值（最后4个字符，注意Modbus是小端模式：低字节在前）
             val receivedCrcLow = hexFrame.substring(hexFrame.length - 4, hexFrame.length - 2).toInt(16)
-            DebugLog.e("receivedCrcLow：${receivedCrcLow}")
             val receivedCrcHigh = hexFrame.substring(hexFrame.length - 2).toInt(16)
-            DebugLog.e("receivedCrcHigh：${receivedCrcHigh}")
             val receivedCrc = (receivedCrcHigh shl 8) or receivedCrcLow
-            DebugLog.e("receivedCrc：${receivedCrc}")
 
             // 4. 将数据部分的十六进制字符串转成ByteArray
 
             val dataBytes = dataPartHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
             val hexCheck = dataBytes.joinToString("") { "%02X".format(it) }
-            DebugLog.e("hexCheck：${hexCheck}")
-            // 5. 调用你已有的 calcCrc16 函数计算理论CRC值
+            // 5. 调用 calcCrc16 函数计算理论CRC值
             val calculatedCrc = calcCrc16(dataBytes)
-//            val calculatedCrc = 2692
-            DebugLog.e("calculatedCrc：${calculatedCrc}")
             // 6. 比对
             val isValid = calculatedCrc == receivedCrc
             if (!isValid) {
@@ -519,14 +543,10 @@ class SerialPortUtil(
     // 输入：十六进制字符串（不带CRC）
     // 输出：计算好的 CRC 十六进制字符串
     private fun getModbusCrc(hexStr: String): String {
-        DebugLog.e("hexStr:${hexStr}")
         val bytes = hexStrToBytes(hexStr)
         val crc = calcCrc16(bytes)
-        DebugLog.e("crc:${crc}")
         val low = crc and 0xFF
-        DebugLog.e("low:${low}")
         val high = (crc shr 8) and 0xFF
-        DebugLog.e("high:${high}")
         return String.format("%02X%02X", low, high)
     }
 
