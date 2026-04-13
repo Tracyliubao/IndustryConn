@@ -48,14 +48,23 @@
 # 	print('波特率错误')
 
 #day3
-def hex_to_int(hex_str):
-	return int(hex_str, 16)#直接将16进制转成10进制
-def build_cmd(addr, func):
-	return f'{addr:02X}{func:02X}'
-def extract_data(commend):
-	return commend[0:-4]
-print(hex_to_int('0102'))
-print(build_cmd(1,3))
-print(extract_data("01030201023815"))
+# def hex_to_int(hex_str):
+# 	return int(hex_str, 16)#直接将16进制转成10进制
+# def build_cmd(addr, func):
+# 	return f'{addr:02X}{func:02X}'
+# def extract_data(commend):
+# 	return commend[0:-4]
+# print(hex_to_int('0102'))
+# print(build_cmd(1,3))
+# print(extract_data("01030201023815"))
+
+#day4
+import struct
+packField = struct.pack('>H', 258)
+print(packField.hex().upper())
+unPackField = struct.unpack('>H', b'\x01\x02')#unpack固定返回元组
+print(unPackField[0])
+packText = struct.pack('>BBHH', 0x01, 0x03, 0x00, 0x01)#B-1字节无符号字符，H2字节无符号短整数
+print(packText.hex().upper())
 
 
