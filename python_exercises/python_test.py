@@ -64,7 +64,7 @@ packField = struct.pack('>H', 258)
 print(packField.hex().upper())
 unPackField = struct.unpack('>H', b'\x01\x02')#unpack固定返回元组
 print(unPackField[0])
-packText = struct.pack('>BBHH', 0x01, 0x03, 0x00, 0x01)#B-1字节无符号字符，H2字节无符号短整数
+packText = struct.pack('>BBHH', 0x01, 0x03, 0x00, 0x01)#B-1字节无符号字节，H2字节无符号短整数
 print(packText.hex().upper())
 
 
