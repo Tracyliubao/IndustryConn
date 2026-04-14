@@ -58,13 +58,46 @@
 # print(build_cmd(1,3))
 # print(extract_data("01030201023815"))
 
-#day4
-import struct
-packField = struct.pack('>H', 258)
-print(packField.hex().upper())
-unPackField = struct.unpack('>H', b'\x01\x02')#unpack固定返回元组
-print(unPackField[0])
-packText = struct.pack('>BBHH', 0x01, 0x03, 0x00, 0x01)#B-1字节无符号字节，H2字节无符号短整数
-print(packText.hex().upper())
+# #day4
+# import struct
+# packField = struct.pack('>H', 258)
+# print(packField.hex().upper())
+# unPackField = struct.unpack('>H', b'\x01\x02')#unpack固定返回元组
+# print(unPackField[0])
+# packText = struct.pack('>BBHH', 0x01, 0x03, 0x00, 0x01)#B-1字节无符号字节，H2字节无符号短整数
+# print(packText.hex().upper())
+
+#day5
+import argparse
+parser = argparse.ArgumentParser(description='Modbus RTU调试工具')
+parser.add_argument('--port', required = True, help = '串口号')
+parser.add_argument('--baud', type = int, default = 9600, help = '波特率')
+parser.add_argument('--addr', type = int, default = 1, help = '设备地址')
+parser.add_argument('--start', type = int, default = 0, help = '起始寄存器地址')
+parser.add_argument('--count', type = int, default = 1, help = '读取寄存器数量')
+#解析
+args = parser.parse_args()
+
+print(f'端口：{args.port}')
+print(f'波特率：{args.baud}')
+print(f'设备地址：{args.addr}')
+print(f'起始地址：{args.start}')
+print(f'寄存器数量：{args.count}')
+
+#day6
+import serial
+try:
+	ser = serial.Serial(port = 'COM999')
+	ser.close()
+except serial.SerialException:
+	print('串口不存在')
+
+print(serial.__version__)
+
+config = {
+	'baudrate': 9600,
+	'timeout': 1
+}
+print(config)
 
 
