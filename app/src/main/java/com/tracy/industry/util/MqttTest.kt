@@ -28,7 +28,63 @@ class MqttTest {
      * 4. 调用 connect 方法
      */
     fun connect(onSuccess: () -> Unit, onFailed: (String) -> Unit) {
-        // TODO: 你来实现
+        // 初始化client
+        mqttClient = MqttAndroidClient(MyApplication.instance, MQTT_BROKER, MQTT_CLIENT_ID, MemoryPersistence())
+
+        // 连接参数
+        val options = MqttConnectOptions().apply {
+            isCleanSession = true
+            keepAliveInterval = 30
+            connectionTimeout = 10
+            isAutomaticReconnect = true
+            setWill("liubao/test", "offline".toByteArray(), 1, true)
+        }
+
+        // 获取回调信息
+        mqttClient.setCallback(object : MqttCallbackExtended{
+
+            override fun connectComplete(reconnect: Boolean, serverURI: String?) {
+                // 已连接
+                isConnected = true
+                onSuccess()
+            }
+
+            override fun connectionLost(cause: Throwable?) {
+                // 连接断开
+                isConnected = false
+            }
+
+            override fun messageArrived(topic: String?, message: MqttMessage?) {
+                // 收到服务器下发指令
+                DebugLog.e("topic=${topic}, message=${message?.payload}")
+            }
+
+            override fun deliveryComplete(token: IMqttDeliveryToken?) {
+                // 消息发送的确认，仅qos = 1, 2时有效
+            }
+
+        })
+
+        // 开始连接
+        try {
+            mqttClient.connect(options, null, object : IMqttActionListener{
+                override fun onSuccess(asyncActionToken: IMqttToken?) {
+                    // 发送连接请求成功
+                }
+
+                override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+                    // 发送连接请求失败
+                    onFailed(exception?.message ?: "")
+                }
+
+            })
+        }
+        catch (e: Exception){
+            e.printStackTrace()
+            onFailed(e.message ?: "")
+            // 连接失败
+        }
+
     }
 
     /**
@@ -37,14 +93,39 @@ class MqttTest {
      * 2. 构造 MqttMessage（QoS=1, retain=true）
      * 3. 调用 publish
      */
-    fun publishBleData(topic: String, data: String) {
-        // TODO: 你来实现
+    fun publishData(topic: String, data: String) {
+        if (!isConnected){
+            DebugLog.e("Mqtt未连接，发送失败")
+            return
+        }
+        try {
+            val mqttMsg = MqttMessage(data.toByteArray()).apply {
+                qos = 1
+                isRetained = true
+            }
+            mqttClient.publish(topic, mqttMsg)
+        }
+        catch (e: Exception){
+            e.printStackTrace()
+            DebugLog.e("发送失败")
+        }
+
     }
 
     /**
      * 断开连接
      */
     fun disconnect() {
-        // TODO: 你来实现
+        try {
+            if (::mqttClient.isInitialized && isConnected){
+                mqttClient.disconnect()
+                isConnected = false
+            }
+        }
+        catch (e: Exception){
+            e.printStackTrace()
+            DebugLog.e("断开连接异常")
+        }
+
     }
 }
