@@ -199,9 +199,7 @@ class ForegroundService: Service() {
      * 对外提供数据上传接口
      */
     fun uploadDeviceData(data: String) {
-        DebugLog.e("发送成功")
-//        wsManager.sendTextData(data)
-        mqttManager.publishBleData("MQTT", data)
+        mqttManager.publish(data)
     }
 
     /**

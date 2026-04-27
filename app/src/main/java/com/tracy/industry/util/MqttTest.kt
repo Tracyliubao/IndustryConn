@@ -81,7 +81,8 @@ class MqttTest {
             DebugLog.e("Mqtt已断开，发送失败")
             return
         }
-        val mqttMsg = MqttMessage(data.toByteArray()).apply {
+        val cmd = data.toByteArray()
+        val mqttMsg = MqttMessage(cmd).apply {
             qos = 1
             isRetained = true
         }

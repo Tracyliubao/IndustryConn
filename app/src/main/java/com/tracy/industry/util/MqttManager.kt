@@ -1,6 +1,14 @@
 package com.tracy.industry.util
 
 import com.tracy.industry.base.MyApplication
+import com.tracy.industry.database.DeviceRepository
+import com.tracy.industry.database.entity.InfoEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import org.eclipse.paho.android.service.MqttAndroidClient
 import org.eclipse.paho.client.mqttv3.IMqttActionListener
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
@@ -22,10 +30,23 @@ class MqttManager {
         private const val MQTT_BROKER = "tcp://broker.hivemq.com:1883"
         // 客户端ID：工业场景用设备SN，这里用时间戳保证唯一
         private val MQTT_CLIENT_ID = "android_industrial_${System.currentTimeMillis()}"
+        private val repository = DeviceRepository()
     }
 
     private lateinit var mqttClient: MqttAndroidClient
     private var isConnected = false
+    private val topic = "liubao/test"
+    private val mqttScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * 统一处理数据库操作，避免在回调线程中直接调用suspend函数。
+     */
+    private fun runDbTask(taskName: String, block: suspend DeviceRepository.() -> Unit) {
+        mqttScope.launch {
+            runCatching { repository.block() }
+                .onFailure { e -> DebugLog.e("数据库操作失败[$taskName]：${e.message}") }
+        }
+    }
 
     /**
      * 连接MQTT服务器（工业场景：断线自动重连）
@@ -41,7 +62,7 @@ class MqttManager {
             connectionTimeout = 10 // 连接超时10秒
             isAutomaticReconnect = true // 断线自动重连
             // 遗嘱消息
-            setWill("liubao/will", "offline".toByteArray(), 1, true)
+            setWill(topic, "offline".toByteArray(), 1, true)
         }
 
         // 连接回调
@@ -51,6 +72,14 @@ class MqttManager {
                 // reconnect 表示是否重连过，true表示重连过，且已重连成功，false表示初次连接
                 DebugLog.e("MQTT连接成功")
                 onSuccess()
+                runDbTask("queryInfoOnConnect") {
+                    val queryInfo = queryInfo().firstOrNull().orEmpty()
+                    if (queryInfo.isNotEmpty()){
+                        for (temp in queryInfo){
+                            publish(temp.content, temp.id, true)
+                        }
+                    }
+                }
             }
 
             // 连接失败
@@ -68,7 +97,9 @@ class MqttManager {
             }
 
             // 消息成功送达 Broker 的确认（仅 QoS 1/2）
-            override fun deliveryComplete(token: IMqttDeliveryToken?) {}
+            override fun deliveryComplete(token: IMqttDeliveryToken?) {
+                // 消息已成功送达 Broker，可以安全删除本地缓存
+            }
         })
 
         // 发起连接
@@ -91,19 +122,37 @@ class MqttManager {
      * @param topic 工业规范Topic：/industrial/ble/设备ID/数据类型
      * @param data 比如：{"deviceId":"BLE001","temp":25.5,"time":1710588000000}
      */
-    fun publishBleData(topic: String, data: String) {
-        if (!isConnected) {
-            DebugLog.e("MQTT未连接，数据暂存")
-            return
+    fun publish(data: String, infoId: Int = -1, isResend: Boolean = false){
+        val mqttMsg = MqttMessage(data.toByteArray()).apply {
+            qos = 1
+            isRetained = true
         }
         try {
-            val message = MqttMessage(data.toByteArray())
-            message.qos = 1 // 工业级QoS1（至少送达一次，保证数据不丢）
-            message.isRetained = true // 保留最新数据，服务器能拿到
-            mqttClient.publish(topic, message)
-            DebugLog.e("BLE数据上报成功：$topic → $data")
-        } catch (e: Exception) {
-            DebugLog.e("上报失败：${e.message}")
+            if (isConnected){
+                mqttClient.publish(topic, mqttMsg)
+                if (infoId > -1){
+                    runDbTask("deleteOnDelivered") { deleteInfo(infoId) }
+                }
+            }
+            else {
+                DebugLog.e("Mqtt发送失败")
+                // 实时数据才需要保存，补传数据不存入数据库
+                if (!isResend){
+                    runDbTask("insertInfoOnPublishFailed") {
+                        insertInfo(InfoEntity(content = data, status = 0))
+                    }
+                }
+            }
+        }
+        catch (e: Exception){
+            e.printStackTrace()
+            DebugLog.e("发送失败")
+            // 实时数据才需要保存，补传数据不存入数据库
+            if (!isResend){
+                runDbTask("insertInfoOnPublishFailed") {
+                    insertInfo(InfoEntity(content = data, status = 0))
+                }
+            }
         }
     }
 
@@ -119,5 +168,6 @@ class MqttManager {
                 DebugLog.e("断开失败：${e.message}")
             }
         }
+        mqttScope.cancel()
     }
 }
