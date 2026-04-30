@@ -14,7 +14,8 @@ import androidx.work.WorkManager
 import com.tracy.industry.util.BLEManager
 import com.tracy.industry.util.DebugLog
 import com.tracy.industry.util.MqttManager
-import com.tracy.industry.util.SerialPortUtil
+import com.tracy.industry.util.ModbusUtils
+import com.tracy.industry.util.SerialPortManager
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.Executors
@@ -32,7 +33,7 @@ class ForegroundService: Service() {
     private val NOTIFICATION_ID = 1001
     private var heartbeatTimer: Timer? = null
     private val WORK_NAME = "DEVICE_MONITOR"
-    private lateinit var modbusUtil: SerialPortUtil
+    private lateinit var serialPortUtil: SerialPortManager
     private val collectExecutor = Executors.newSingleThreadScheduledExecutor()
 
     private var temperatureText: String = ""
@@ -57,11 +58,7 @@ class ForegroundService: Service() {
     override fun onCreate() {
         super.onCreate()
 //        mqttManager = MqttManager()
-        modbusUtil = SerialPortUtil(portPath = "/dev/ttyS1",
-            baudRate = 9600,
-            dataBits = 8,
-            stopBits = 1,
-            parity = 0 )
+        serialPortUtil = SerialPortManager(portPath = "/dev/ttyS1", baudRate = 9600)
         // 2. 启动前台服务（提升进程优先级）
         startForegroundService()
         // 3. 启动守护进程
@@ -138,9 +135,9 @@ class ForegroundService: Service() {
     private fun startDataCollection() {
         collectExecutor.scheduleWithFixedDelay({
             DebugLog.e("startDataCollection-------->")
-            modbusUtil.openSerialPort()
+            serialPortUtil.open()
             // 1. 读保持寄存器（03）：温度
-            val tempRegValues = modbusUtil.readHoldingRegisters(1, 0, 1)
+            val tempRegValues = ModbusUtils.buildReadHoldingRegistersCmd(1, 0,1)
             if (tempRegValues.isNotEmpty()) {
                 val temperature = tempRegValues[0] / 10.0
                 temperatureText = "采集温度：${temperature}℃"

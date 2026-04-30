@@ -12,7 +12,8 @@ import com.tracy.industry.service.ForegroundService
 import com.tracy.industry.ui.theme.generateViewModel
 import com.tracy.industry.ui.theme.showMessage
 import com.tracy.industry.util.DebugLog
-import com.tracy.industry.util.SerialPortUtil
+import com.tracy.industry.util.ModbusUtils
+import com.tracy.industry.util.SerialPortManager
 
 /**
  * Des:串口相关功能
@@ -23,7 +24,7 @@ class SerialPortActivity: BaseBindingActivityKt<ActivitySerialPortBinding, Seria
 
     // 工业设备常见串口路径（测试用，实际根据设备调整）
     private val serialPortPath = "/dev/ttyS1"
-    private lateinit var serialPortUtil: SerialPortUtil
+    private lateinit var serialPortUtil: SerialPortManager
     private val TEST_HEX_COMMAND = "010300000001"
 
     private var foreService: ForegroundService? = null
@@ -38,67 +39,64 @@ class SerialPortActivity: BaseBindingActivityKt<ActivitySerialPortBinding, Seria
         startForegroundService()
         // 配置串口数据
         // 2. 初始化串口工具类（配置9600波特率，工业默认参数）
-        serialPortUtil = SerialPortUtil(
+        serialPortUtil = SerialPortManager(
             portPath = serialPortPath,
             baudRate = 9600,
-            dataBits = 8,
-            stopBits = 1,
-            parity = 0
         )
 
         mBinding.tvSerial.setOnClickListener {
-            val isOpen = serialPortUtil.openSerialPort()
+            val isOpen = serialPortUtil.open()
             mBinding.tvSerial.text = if (isOpen) "已打开" else "未开启"
         }
 
         mBinding.tvCloseSerial.setOnClickListener {
-            serialPortUtil.closeSerialPort()
+            serialPortUtil.close()
             showMessage("已关闭")
         }
 
-        mBinding.tvCheckSerial.setOnClickListener {
-            val portConfig = serialPortUtil.getPortConfig()
-            mBinding.tvCheckSerial.text = portConfig
-        }
-
-        mBinding.tvSend.setOnClickListener {
-            val message = serialPortUtil.sendHexCommand(TEST_HEX_COMMAND)
-            mBinding.tvSend.text = message
-        }
-
-        mBinding.tvReceive.setOnClickListener {
-            serialPortUtil.receiveHexData(true) { hexData ->
-                runOnUiThread {
-                    if (hexData != null) {
-                        val temperature = serialPortUtil.parseTemperatureFromHex(hexData)
-                        val parseResult = if (temperature != null) {
-                            "解析后数字：$temperature"
-                        } else {
-                            "解析失败"
-                        }
-                        mBinding.tvReceive.text = parseResult
-                    }
-                }
-            }
-        }
-
-        mBinding.tvRead.setOnClickListener {
-            val regValues = serialPortUtil.readHoldingRegisters(deviceAddr = 1, startReg = 0, regCount = 1)
-            if (regValues.isNotEmpty()) {
-                mBinding.tvRead.text = "寄存器原始值：${regValues[0]}"
-            } else {
-                mBinding.tvRead.text = "读寄存器失败"
-            }
-        }
-
-        mBinding.tvWrite.setOnClickListener {
-            val success = serialPortUtil.writeSingleRegister(deviceAddr = 1, regAddr = 1, value = 100)
-            mBinding.tvWrite.text = if (success) {
-                "寄存器地址：1写入值：100"
-            } else {
-                "写寄存器失败"
-            }
-        }
+//        mBinding.tvCheckSerial.setOnClickListener {
+//            val portConfig = serialPortUtil.getPortConfig()
+//            mBinding.tvCheckSerial.text = portConfig
+//        }
+//
+//        mBinding.tvSend.setOnClickListener {
+//            val message = serialPortUtil.sendHexCommand(TEST_HEX_COMMAND)
+//            mBinding.tvSend.text = message
+//        }
+//
+//        mBinding.tvReceive.setOnClickListener {
+//            serialPortUtil.receiveHexData(true) { hexData ->
+//                runOnUiThread {
+//                    if (hexData != null) {
+//                        val temperature = serialPortUtil.parseTemperatureFromHex(hexData)
+//                        val parseResult = if (temperature != null) {
+//                            "解析后数字：$temperature"
+//                        } else {
+//                            "解析失败"
+//                        }
+//                        mBinding.tvReceive.text = parseResult
+//                    }
+//                }
+//            }
+//        }
+//
+//        mBinding.tvRead.setOnClickListener {
+//            val regValues = serialPortUtil.readHoldingRegisters(deviceAddr = 1, startReg = 0, regCount = 1)
+//            if (regValues.isNotEmpty()) {
+//                mBinding.tvRead.text = "寄存器原始值：${regValues[0]}"
+//            } else {
+//                mBinding.tvRead.text = "读寄存器失败"
+//            }
+//        }
+//
+//        mBinding.tvWrite.setOnClickListener {
+//            val success = serialPortUtil.writeSingleRegister(deviceAddr = 1, regAddr = 1, value = 100)
+//            mBinding.tvWrite.text = if (success) {
+//                "寄存器地址：1写入值：100"
+//            } else {
+//                "写寄存器失败"
+//            }
+//        }
 
         mBinding.tvState.postDelayed(kotlinx.coroutines.Runnable {
             mBinding.tvState.text = foreService?.getTemperature()
@@ -131,7 +129,7 @@ class SerialPortActivity: BaseBindingActivityKt<ActivitySerialPortBinding, Seria
 
     override fun onDestroy() {
         super.onDestroy()
-        serialPortUtil.closeSerialPort()
+        serialPortUtil.close()
         // 结束后台服务
         stopService(Intent(this, ForegroundService::class.java))
         unbindService(serviceConnection)
