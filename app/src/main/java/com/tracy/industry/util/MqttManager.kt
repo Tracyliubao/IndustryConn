@@ -157,6 +157,20 @@ class MqttManager {
     }
 
     /**
+     * 定时调用，发送云端
+     */
+    fun publishFromModbus(sp: SerialPortManager) {
+        if (!isConnected) return
+        val cmd = ModbusUtils.buildReadHoldingRegistersCmd(1, 0, 1)
+        if (!sp.send(cmd)) return
+        val resp = sp.read()
+        val values = ModbusUtils.parseReadHoldingRegistersResponse(resp, 1)
+        if (values.isNotEmpty()) {
+            publish(values[0].toString())
+        }
+    }
+
+    /**
      * 断开连接（Service销毁时调用）
      */
     fun disconnect() {
